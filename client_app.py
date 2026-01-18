@@ -1,128 +1,155 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
+import os
+import base64
 
-# --- 1. 页面配置与视觉优化 ---
-st.set_page_config(page_title="Hao Harbour | London Excellence", layout="wide")
+# --- 1. 页面配置 ---
+st.set_page_config(page_title="Hao Harbour | London Living", layout="wide")
 
-# 核心 CSS：消除顶部白边，并让 Logo 和 Banner 优雅并排
+# --- 2. 深度清理白边与极简 Header 样式 ---
 st.markdown("""
     <style>
-    /* 消除顶部默认间距 */
+    /* 彻底消除顶部空白 */
     .block-container {
-        padding-top: 0rem !important;
+        padding-top: 0rem !important; 
         padding-bottom: 0rem !important;
+        margin-top: -45px; /* 进一步向上提拉，消除白边 */
     }
-    
-    /* 品牌头部容器：Logo 和 Banner 横向排布 */
-    .header-container {
+    header {visibility: hidden;} 
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+
+    /* 超窄白色横幅容器 */
+    .custom-header {
+        background-color: #ffffff;
         display: flex;
-        align-items: center; /* 垂直居中 */
-        gap: 20px;           /* 两者间距 */
-        padding: 15px 0;
-        background-color: white;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 5px 30px;
+        height: 70px;
+        border-bottom: 1px solid #f0f0f0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        margin-bottom: 25px;
     }
     
+    .logo-container {
+        display: flex;
+        align-items: center;
+        height: 100%;
+    }
+
     .logo-img {
-        height: 80px;        /* 限制 Logo 高度，防止变成大白块 */
-        object-fit: contain;
+        max-height: 45px;
+        width: auto;
+        margin-right: 25px;
     }
     
-    .banner-img {
-        flex-grow: 1;        /* Banner 占据剩余空间 */
-        height: 120px;       /* 限制 Banner 高度 */
-        object-fit: cover;   /* 裁剪填充，不拉伸变形 */
-        border-radius: 10px;
+    .header-text {
+        border-left: 1px solid #ddd;
+        padding-left: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     
-    /* 房源卡片样式 */
+    .header-title {
+        font-family: 'Times New Roman', serif;
+        font-size: 20px;
+        font-weight: bold;
+        color: #1a1a1a;
+        margin: 0;
+        line-height: 1.2;
+    }
+    
+    .header-subtitle {
+        font-size: 10px;
+        color: #888;
+        letter-spacing: 3px;
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    /* 房源图片圆角 */
     .stImage > img {
         border-radius: 12px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 品牌元素 (Logo + Banner 并排) ---
-# 注意：确保 GitHub 仓库中有 logo.jpg 和 banner.png，或者替换为你的图片链接
-st.markdown(f"""
-    <div class="header-container">
-        <img src="https://raw.githubusercontent.com/{st.secrets.get('GITHUB_USER', 'yourname')}/{st.secrets.get('GITHUB_REPO', 'yourrepo')}/main/logo.jpg" class="logo-img">
-        <img src="https://raw.githubusercontent.com/{st.secrets.get('GITHUB_USER', 'yourname')}/{st.secrets.get('GITHUB_REPO', 'yourrepo')}/main/banner.png" class="banner-img">
-    </div>
-""", unsafe_allow_html=True)
+# --- 3. 渲染极简 Header ---
+# 自动检测 logo.png 或 logo.jpg
+logo_file = "logo.png" if os.path.exists("logo.png") else "logo.jpg"
+if os.path.exists(logo_file):
+    with open(logo_file, "rb") as f:
+        data = base64.b64encode(f.read()).decode()
+    
+    st.markdown(f"""
+        <div class="custom-header">
+            <div class="logo-container">
+                <img src="data:image/png;base64,{data}" class="logo-img">
+            </div>
+            <div class="header-text">
+                <p class="header-title">HAO HARBOUR</p>
+                <p class="header-subtitle">EXCLUSIVE LONDON LIVING</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("### HAO HARBOUR | EXCLUSIVE LONDON LIVING")
 
-# --- 3. 连接数据源 ---
+# --- 4. 数据库连接 ---
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
+    # ttl=0 保证 DeepSeek 提取的最新内容实时更新
     df = conn.read(worksheet="Sheet1", ttl=0)
-    # 彻底清理空行，防止崩溃
+    # 过滤掉坏数据
     df = df.dropna(subset=['title', 'poster-link'])
 except Exception as e:
-    st.error("正在加载精选房源...")
+    st.info("🏠 正在为您加载最新精品房源...")
     st.stop()
 
-# --- 4. 侧边栏筛选 (保留你要求的房型筛选) ---
-st.sidebar.markdown("## 🔍 房源筛选")
+# --- 5. 侧边栏与过滤逻辑 ---
+if not df.empty:
+    with st.sidebar:
+        st.markdown("### 🔍 房源精选")
+        f_reg = st.multiselect("选择区域", options=df['region'].unique().tolist())
+        f_rm = st.multiselect("选择房型", options=df['rooms'].unique().tolist())
+        
+        # 确保价格是数字
+        df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
+        max_p = int(df['price'].max()) if not df.empty else 10000
+        f_price = st.slider("最高月租 (£/pcm)", 0, max_p + 500, max_p)
 
-with st.sidebar:
-    # 区域多选
-    all_regions = df['region'].unique().tolist()
-    selected_region = st.multiselect("选择区域", options=all_regions)
+    # 应用过滤
+    filtered = df.copy()
+    if f_reg: filtered = filtered[filtered['region'].isin(f_reg)]
+    if f_rm: filtered = filtered[filtered['rooms'].isin(f_rm)]
+    filtered = filtered[filtered['price'] <= f_price]
 
-    # 房型多选 (找回房型)
-    all_rooms = df['rooms'].unique().tolist()
-    selected_rooms = st.multiselect("选择房型", options=all_rooms)
-
-    # 价格滑动条
-    max_p = int(df['price'].max()) if not df.empty else 10000
-    price_limit = st.sidebar.slider("最高月租 (£/pcm)", 0, max_p, max_p)
-
-# 执行过滤逻辑
-filtered = df.copy()
-if selected_region:
-    filtered = filtered[filtered['region'].isin(selected_region)]
-if selected_rooms:
-    filtered = filtered[filtered['rooms'].isin(selected_rooms)]
-filtered = filtered[filtered['price'] <= price_limit]
-
-# --- 5. 房源展示 ---
-st.markdown(f"### 📍 发现 {len(filtered)} 套精品房源")
-
-if filtered.empty:
-    st.info("房源库正在更新中...")
-else:
-    # 保持三列布局
-    grid_cols = st.columns(3)
+    # --- 6. 房源橱窗展示 (三列布局) ---
+    st.markdown(f"#### 📍 发现 {len(filtered)} 套精品房源")
     
-    for i, (_, row) in enumerate(filtered.iterrows()):
-        with grid_cols[i % 3]:
+    cols = st.columns(3)
+    for idx, (real_idx, row) in enumerate(filtered.iterrows()):
+        with cols[idx % 3]:
             with st.container(border=True):
-                # 图片渲染及防错处理
-                img_url = row['poster-link']
-                if pd.isna(img_url) or str(img_url).strip() == "":
+                # 图片展示 (带防崩溃保护)
+                p_link = row['poster-link']
+                if pd.isna(p_link) or str(p_link).strip() == "":
                     st.image("https://via.placeholder.com/400x500?text=Hao+Harbour", use_container_width=True)
                 else:
-                    st.image(img_url, use_container_width=True)
+                    st.image(p_link, use_container_width=True)
                 
-                # 文字信息
                 st.markdown(f"**{row['title']}**")
-                st.markdown(f"**{row['rooms']}** | {row['region']}")
-                st.markdown(f"#### **£{row['price']:,} /pcm**")
+                st.caption(f"📍 {row['region']} | 🛏️ {row['rooms']}")
+                st.markdown(f"#### :red[£{int(row['price']):,} /pcm]")
                 
-                # 查看详情弹窗
-                if st.button("查看详情", key=f"view_{i}"):
+                # --- 详情弹窗 (支持 DeepSeek 内容) ---
+                if st.button("查看详情 & 联系", key=f"btn_{idx}", use_container_width=True):
                     @st.dialog(f"{row['title']}")
-                    def show_info(data):
-                        st.image(data['poster-link'], use_container_width=True)
+                    def show_details(item):
+                        st.image(item['poster-link'], use_container_width=True)
                         st.markdown("### 📋 房源亮点")
-                        # 完美适配 DeepSeek 生成的打钩格式
-                        st.write(data['description'])
-                        st.divider()
-                        st.markdown("💬 **联系我们看房**")
-                        st.markdown("WeChat: HaoHarbour_UK")
-                    
-                    show_info(row)
-
-# --- 6. 底部 ---
-st.divider()
-st.caption("© 2026 Hao Harbour Properties. All Rights Reserved.")
+                        # 重点：显示 DeepSeek 生成的带钩描述
+                        st.write(item['description'])
