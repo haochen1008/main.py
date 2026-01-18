@@ -2,3 +2,4 @@ streamlit
 pillow
 requests
 pandas
+st-gsheets-connection
