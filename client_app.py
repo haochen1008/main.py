@@ -14,7 +14,7 @@ st.markdown("""
     .block-container {
         padding-top: 0rem !important; 
         padding-bottom: 0rem !important;
-        margin-top: -30px; /* 进一步向上提拉 */
+        margin-top: -60px; /* 进一步向上提拉 */
     }
     header {visibility: hidden;} /* 隐藏 Streamlit 原生 Header */
     #MainMenu {visibility: hidden;}
@@ -40,7 +40,7 @@ st.markdown("""
     }
 
     .logo-img {
-        max-height: 55px; /* 限制 Logo 高度，宽度会自动缩放 */
+        max-height: 75px; /* 限制 Logo 高度，宽度会自动缩放 */
         width: auto;
         margin-right: 25px;
     }
