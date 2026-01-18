@@ -53,8 +53,8 @@ def create_poster(files, title):
 st.title("🏡 房源发布系统")
 
 with st.form("upload_form"):
-    title = st.text_input("房源标题 (例: 伦敦一区金融城公寓)")
-    region = st.selectbox("区域", ["City of London", "Canary Wharf", "South Kensington", "Nine Elms"])
+    title = st.text_input("房源标题 (例: Thames City)")
+    region = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"])
     rooms = st.text_input("房型 (例: 1B1B)")
     price = st.number_input("月租 (£/pcm)", min_value=0)
     files = st.file_uploader("上传房源照片 (第一张将作为主图)", accept_multiple_files=True)
