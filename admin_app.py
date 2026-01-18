@@ -6,101 +6,166 @@ import cloudinary.uploader
 import pandas as pd
 import io
 import os
+import requests
 from datetime import datetime
 
 # --- 1. 页面配置 ---
-st.set_page_config(page_title="Hao Harbour 管理后台", layout="wide")
+st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
 
-# Cloudinary 配置
+# Cloudinary & DeepSeek 配置 (从 Secrets 读取)
 cloudinary.config(
     cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
     api_key = st.secrets["CLOUDINARY_API_KEY"],
     api_secret = st.secrets["CLOUDINARY_API_SECRET"]
 )
+DEEPSEEK_KEY = st.secrets["OPENAI_API_KEY"] # 这里假设你填的是 DeepSeek 的 Key
 
-# --- 2. 辅助函数：生成海报 ---
-def create_poster(images, title):
-    # 这里保持你之前的海报生成逻辑不变
-    # 假设你已经有了完整的 create_poster 函数代码
-    # ... (此处省略具体绘图代码，请保留你现有的逻辑) ...
-    pass 
+# --- 2. 核心函数：生成 6 宫格海报 ---
+def create_poster(files, title_text):
+    try:
+        # 创建 800x1200 的纯白画布
+        canvas = Image.new('RGB', (800, 1200), (255, 255, 255))
+        draw = ImageDraw.Draw(canvas)
+        
+        # 加载字体 (确保仓库有 simhei.ttf)
+        try:
+            font_title = ImageFont.truetype("simhei.ttf", 45)
+            font_footer = ImageFont.truetype("simhei.ttf", 25)
+        except:
+            font_title = ImageFont.load_default()
+            font_footer = ImageFont.load_default()
 
-# --- 3. 连接 Google Sheets ---
-conn = st.connection("gsheets", type=GSheetsConnection)
+        # 处理前 6 张图片 (2列3行)
+        for i, f in enumerate(files[:6]):
+            img = Image.open(f).convert('RGB')
+            # 缩放并裁剪为 390x300
+            img = img.resize((390, 300), Image.Resampling.LANCZOS)
+            x = 5 + (i % 2) * 395
+            y = 5 + (i // 2) * 305
+            canvas.paste(img, (x, y))
 
-# --- 4. 主界面：发布新房源 ---
-st.title("🚀 Hao Harbour 房源发布系统")
+        # 底部写入标题
+        draw.text((40, 950), title_text, font=font_title, fill=(0, 0, 0))
+        draw.text((40, 1030), "Hao Harbour | London Excellence", font=font_footer, fill=(180, 160, 100))
+        
+        # 画一条装饰线
+        draw.line([(40, 1010), (760, 1010)], fill=(200, 200, 200), width=2)
+        
+        return canvas
+    except Exception as e:
+        st.error(f"海报生成失败: {e}")
+        return None
 
-with st.expander("➕ 发布新房源", expanded=True):
-    col1, col2 = st.columns(2)
+# --- 3. 核心函数：DeepSeek AI 提取 ---
+def call_ai_summary(raw_text):
+    try:
+        headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}", "Content-Type": "application/json"}
+        prompt = f"请将以下伦敦房源英文描述翻译并精简成中文要点，使用✔符号开头，包含租金、交通、周边、装修亮点等。描述如下：\n{raw_text}"
+        data = {
+            "model": "deepseek-chat",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7
+        }
+        response = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=data)
+        return response.json()['choices'][0]['message']['content']
+    except Exception as e:
+        return f"AI 提取失败，请手动编辑。错误: {e}"
+
+# --- 4. 主界面布局 ---
+st.title("🏡 Hao Harbour 房源发布与管理")
+
+# 初始化 Session State 用于预览
+if "ai_desc" not in st.session_state: st.session_state.ai_desc = ""
+
+tab1, tab2 = st.tabs(["🆕 发布新房源", "🗂️ 房源管理 (删除)"])
+
+# --- TAB 1: 发布房源 ---
+with tab1:
+    col1, col2 = st.columns([1, 1])
+    
     with col1:
-        title = st.text_input("房源名称 (如: River Park Tower)")
-        # 优化 1: 区域改为指定中文下拉
-        region = st.selectbox("选择区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"])
-        # 优化 2: 房型改为指定下拉
-        rooms = st.selectbox("选择房型", ["1房", "2房", "3房", "4房+"])
-    
-    with col2:
-        price = st.number_input("月租 (£/pcm)", min_value=0, value=5000, step=100)
-        desc = st.text_area("房源描述 (DeepSeek 提取的内容)", height=150)
-
-    photos = st.file_uploader("上传房源照片 (第一张为主图)", accept_multiple_files=True)
-
-    if st.button("📢 确认发布", type="primary"):
-        if not title or not photos or not desc:
-            st.error("请完整填写标题、描述并上传照片")
-        else:
-            with st.spinner("正在处理并同步中..."):
-                # (这里调用你的海报生成和 Cloudinary 上传逻辑)
-                # 假设上传后得到了 p_url
-                p_url = "https://your-cloudinary-link.jpg" # 占位符
-                
-                # --- 核心修复：安全追加数据 ---
-                existing_df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-                new_row = {
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "title": title,
-                    "region": region,
-                    "rooms": rooms,
-                    "price": price,
-                    "poster-link": p_url,
-                    "description": desc
-                }
-                # 使用 concat 确保旧数据保留，新数据追加
-                updated_df = pd.concat([existing_df, pd.DataFrame([new_row])], ignore_index=True)
-                conn.update(worksheet="Sheet1", data=updated_df)
-                st.success(f"✅ 《{title}》 已发布成功！")
-                st.rerun()
-
-# --- 5. 新增功能：房源管理与删除 ---
-st.divider()
-st.subheader("📋 已发布房源管理")
-
-# 读取最新列表
-try:
-    manage_df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-    
-    if manage_df.empty:
-        st.info("目前还没有发布任何房源。")
-    else:
-        # 显示简易列表
-        display_df = manage_df[['date', 'title', 'region', 'rooms', 'price']]
+        st.subheader("1. 填写基本信息")
+        title = st.text_input("房源名称 (如: Merino Gardens)")
+        region = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"])
+        rooms = st.selectbox("房型", ["1房", "2房", "3房", "4房+"])
+        price = st.number_input("月租 (£/pcm)", value=3000, step=100)
         
-        # 使用 st.data_editor 或带勾选框的表格
-        selected_rows = st.multiselect("选择要删除的房源标题", options=manage_df['title'].tolist())
-        
-        if st.button("🗑️ 删除选中房源", help="删除后不可恢复"):
-            if selected_rows:
-                # 过滤掉选中的行
-                new_manage_df = manage_df[~manage_df['title'].isin(selected_rows)]
-                conn.update(worksheet="Sheet1", data=new_manage_df)
-                st.warning(f"已删除: {', '.join(selected_rows)}")
-                st.rerun()
+        raw_desc = st.text_area("粘贴英文原始描述 (用于 AI 提取)", height=200)
+        if st.button("✨ 执行 AI 智能提取"):
+            if raw_desc:
+                with st.spinner("DeepSeek 正在分析中..."):
+                    st.session_state.ai_desc = call_ai_summary(raw_desc)
             else:
-                st.info("请先在上方选择要删除的房源。")
-        
-        # 展示当前表格
-        st.dataframe(display_df, use_container_width=True)
+                st.warning("请先粘贴英文描述")
 
-except Exception as e:
-    st.error(f"加载房源列表失败: {e}")
+    with col2:
+        st.subheader("2. 预览与发布")
+        # AI 提取后的结果，允许手动微调
+        final_desc = st.text_area("最终 Description (可微调)", value=st.session_state.ai_desc, height=250)
+        
+        photos = st.file_uploader("上传照片 (前6张将生成海报)", accept_multiple_files=True)
+        
+        if st.button("🚀 确认发布 (生成海报并同步)", type="primary"):
+            if not title or not photos or not final_desc:
+                st.error("请确保标题、描述和图片已准备就绪")
+            else:
+                with st.spinner("正在生成海报并上传云端..."):
+                    # 生成海报
+                    poster_img = create_poster(photos, title)
+                    if poster_img:
+                        # 转为字节流上传
+                        buf = io.BytesIO()
+                        poster_img.save(buf, format='JPEG')
+                        upload_res = cloudinary.uploader.upload(buf.getvalue())
+                        p_url = upload_res.get("secure_url")
+                        
+                        # 同步 Google Sheets (追加模式)
+                        try:
+                            conn = st.connection("gsheets", type=GSheetsConnection)
+                            df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
+                            
+                            new_data = {
+                                "date": datetime.now().strftime("%Y-%m-%d"),
+                                "title": title,
+                                "region": region,
+                                "rooms": rooms,
+                                "price": price,
+                                "poster-link": p_url,
+                                "description": final_desc
+                            }
+                            updated_df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+                            conn.update(worksheet="Sheet1", data=updated_df)
+                            
+                            st.success(f"✅ 《{title}》 已成功追加至数据库！")
+                            st.image(p_url, caption="生成的海报已同步至客户端", width=400)
+                        except Exception as e:
+                            st.error(f"数据库同步失败: {e}")
+
+# --- TAB 2: 房源管理 (删除) ---
+with tab2:
+    st.subheader("📋 现有房源在线列表")
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        manage_df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
+        
+        if manage_df.empty:
+            st.info("暂无在线房源")
+        else:
+            # 删除功能
+            to_delete = st.multiselect("选择要下架(删除)的房源标题", options=manage_df['title'].tolist())
+            
+            if st.button("🗑️ 确认下架选中房源"):
+                if to_delete:
+                    # 过滤掉要删除的行
+                    new_df = manage_df[~manage_df['title'].isin(to_delete)]
+                    conn.update(worksheet="Sheet1", data=new_df)
+                    st.success(f"已下架: {len(to_delete)} 套房源")
+                    st.rerun()
+                else:
+                    st.warning("请先选择房源")
+            
+            # 展示数据
+            st.dataframe(manage_df[['date', 'title', 'region', 'rooms', 'price']], use_container_width=True)
+            
+    except Exception as e:
+        st.error(f"列表加载失败: {e}")
