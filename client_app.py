@@ -27,7 +27,7 @@ st.markdown("""
         align-items: center; /* 垂直居中 */
         justify-content: flex-start; /* 左对齐 */
         padding: 5px 30px;
-        height: 1000px; /* 整个横幅只有 70 像素高 */
+        height: 100px; /* 整个横幅只有 70 像素高 */
         border-bottom: 1px solid #f0f0f0;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         margin-bottom: 15px;
