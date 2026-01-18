@@ -3,3 +3,4 @@ pillow
 requests
 pandas
 st-gsheets-connection
+cloudinary
