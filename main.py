@@ -3,56 +3,69 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 
+# 设置页面
+st.set_page_config(page_title="Hao Harbour 数据库测试", layout="wide")
 st.title("🚀 Hao Harbour 云端数据库测试")
 
-# 1. 初始化连接 (会读取你刚才在 Secrets 填写的配置)
+# 1. 尝试初始化连接
 try:
+    # 建立连接
     conn = st.connection("gsheets", type=GSheetsConnection)
-    st.success("✅ 成功连接到 Google Sheets 引擎！")
-except Exception as e:
-    st.error(f"❌ 连接引擎失败，请检查 Secrets 配置。错误信息: {e}")
-
-# 2. 读取现有数据 (测试读取权限)
-st.subheader("当前表格数据预览")
-try:
-    # 注意：worksheet 名称必须和你表格下方的标签名一致，通常是 "Sheet1"
-    df = conn.read(worksheet="Sheet1")
-    st.dataframe(df)
-except Exception as e:
-    st.warning("目前表格可能是空的，或者读取失败。")
-
-# 3. 写入测试数据 (测试写入权限)
-st.subheader("写入测试")
-test_title = st.text_input("输入一个房源名称进行测试", value="Lexington Gardens Test")
-
-if st.button("📝 点我写入一行数据到表格"):
+    
+    # 2. 读取测试
+    st.subheader("📊 当前表格数据预览")
+    # 如果表格完全是空的，这里可能会报错，我们加个 try
     try:
-        # 构建一行新数据
-        new_data = pd.DataFrame([{
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "title": test_title,
-            "region": "西伦敦",
-            "rooms": "2房",
-            "price": 3358,
-            "poster_link": "https://example.com/test.png"
-        }])
-        
-        # 获取旧数据并合并
-        existing_data = conn.read(worksheet="Sheet1")
-        # 如果现有数据全是空的，直接用新数据
-        if existing_data.empty or existing_data.dropna(how='all').empty:
-            updated_df = new_data
+        # worksheet="Sheet1" 必须对应你表格底部的名称
+        df = conn.read(worksheet="Sheet1", ttl=0) # ttl=0 确保每次都读最新的
+        if df.empty:
+            st.info("表格目前是空的，准备写入第一条数据吧！")
         else:
-            updated_df = pd.concat([existing_data, new_data], ignore_index=True)
-        
-        # 写回 Google Sheets
-        conn.update(worksheet="Sheet1", data=updated_df)
-        
-        st.balloons()
-        st.success("🎉 太棒了！数据已成功写入 Google Sheets！快去检查你的表格。")
-        
-        # 刷新页面显示新数据
-        st.rerun()
-        
-    except Exception as e:
-        st.error(f"❌ 写入失败！这通常是因为机器人账号没有表格的 'Editor' 权限。错误详情: {e}")
+            st.dataframe(df, use_container_width=True)
+    except Exception as read_e:
+        st.warning(f"读取提示：表格可能尚未初始化或找不到 Sheet1。详细信息: {read_e}")
+
+    # 3. 写入测试
+    st.divider()
+    st.subheader("✍️ 写入新数据测试")
+    test_title = st.text_input("房源名称", value="Lexington Gardens")
+    test_reg = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"])
+    test_price = st.number_input("月租", value=3500)
+
+    if st.button("📝 确认写入并同步到云端"):
+        with st.spinner("正在同步..."):
+            # 创建新行
+            new_row = pd.DataFrame([{
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "title": test_title,
+                "region": test_reg,
+                "rooms": "2房",
+                "price": test_price,
+                "poster_link": "https://haoharbour.com/test.png"
+            }])
+            
+            # 读取旧数据
+            try:
+                old_df = conn.read(worksheet="Sheet1", ttl=0)
+                # 合并
+                updated_df = pd.concat([old_df, new_row], ignore_index=True)
+            except:
+                # 如果读取失败（比如完全空白），则新行就是全部数据
+                updated_df = new_row
+            
+            # 执行更新
+            conn.update(worksheet="Sheet1", data=updated_df)
+            st.balloons()
+            st.success("🎉 写入成功！请刷新你的 Google Sheets 查看。")
+            # 自动刷新当前页面
+            st.rerun()
+
+except Exception as e:
+    st.error("❌ 核心连接失败！")
+    st.info("排查建议：")
+    st.markdown("""
+    1. **Secrets 格式**：确保 Secrets 里的 `private_key` 包含了 `-----BEGIN PRIVATE KEY-----`。
+    2. **表格权限**：确保表格已分享给机器人邮箱（Editor 权限）。
+    3. **表格网址**：确保 Secrets 里的 `spreadsheet` 网址是正确的。
+    """)
+    st.exception(e)
