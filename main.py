@@ -1,4 +1,19 @@
 import streamlit as st
+# ... 其他引用保持不变 ...
+
+# --- 1. 云端配置 (增加 Key 存在性检查) ---
+if "CLOUDINARY_CLOUD_NAME" in st.secrets:
+    cloudinary.config(
+        cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
+        api_key = st.secrets["CLOUDINARY_API_KEY"],
+        api_secret = st.secrets["CLOUDINARY_API_SECRET"]
+    )
+else:
+    st.error("❌ Cloudinary 配置未在 Secrets 中找到，请检查层级顺序！")
+    st.stop() # 停止运行，防止后续崩溃
+
+# ... 后续代码保持不变 ...
+import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 from streamlit_gsheets import GSheetsConnection
 import cloudinary
