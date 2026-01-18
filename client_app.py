@@ -1,141 +1,105 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-import os
-import base64
 
-# --- 1. 页面配置 ---
-st.set_page_config(page_title="Hao Harbour", layout="wide")
+# --- 1. 页面配置与 CSS 优化 ---
+st.set_page_config(page_title="Hao Harbour | 伦敦房源精选", layout="wide")
 
-# --- 2. 深度清理白边与优化 Banner 样式 ---
+# 强制优化顶部 Banner 大小，解决你之前提到的遮挡问题
 st.markdown("""
     <style>
-    /* 彻底消除 Streamlit 顶部的空白高度 */
     .block-container {
-        padding-top: 0rem !important; 
-        padding-bottom: 0rem !important;
-        margin-top: -10px; /* 进一步向上提拉 */
+        padding-top: 1rem !important;
     }
-    header {visibility: hidden;} /* 隐藏 Streamlit 原生 Header */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-
-    /* 窄横幅容器：背景改为极简白，增加阴影感 */
-    .custom-header {
-        background-color: #ffffff;
-        display: flex;
-        align-items: center; /* 垂直居中 */
-        justify-content: flex-start; /* 左对齐 */
-        padding: 5px 30px;
-        height: 100px; /* 整个横幅只有 70 像素高 */
-        border-bottom: 1px solid #f0f0f0;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        margin-bottom: 15px;
+    .stAppViewMain img {
+        border-radius: 10px;
     }
-    
-    .logo-container {
-        display: flex;
-        align-items: center;
+    /* 限制 Banner 高度 */
+    .banner-container {
+        width: 100%;
+        height: 250px;
+        overflow: hidden;
+        border-radius: 15px;
+        margin-bottom: 20px;
+    }
+    .banner-img {
+        width: 100%;
         height: 100%;
-    }
-
-    .logo-img {
-        max-height: 100px; /* 限制 Logo 高度，宽度会自动缩放 */
-        width: auto;
-        margin-right: 25px;
-    }
-    
-    .header-text {
-        border-left: 1px solid #ddd;
-        padding-left: 20px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    
-    .header-title {
-        font-family: 'Times New Roman', serif;
-        font-size: 20px;
-        font-weight: bold;
-        color: #1a1a1a;
-        margin: 0;
-        line-height: 1.2;
-    }
-    
-    .header-subtitle {
-        font-size: 10px;
-        color: #888;
-        letter-spacing: 3px;
-        margin: 0;
-        line-height: 1.2;
+        object-fit: cover;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 渲染超窄 Banner ---
-logo_path = "logo.jpg"
-if os.path.exists(logo_path):
-    with open(logo_path, "rb") as f:
-        data = base64.b64encode(f.read()).decode()
-    
-    st.markdown(f"""
-        <div class="custom-header">
-            <div class="logo-container">
-                <img src="data:image/png;base64,{data}" class="logo-img">
-            </div>
-            <div class="header-text">
-                <p class="header-title">HAO HARBOUR</p>
-                <p class="header-subtitle">EXCLUSIVE LONDON LIVING</p>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("### HAO HARBOUR | EXCLUSIVE LONDON LIVING")
+# --- 2. 加载 Banner ---
+# 建议在 GitHub 仓库放一个 banner.png
+try:
+    st.markdown('<div class="banner-container"><img src="https://raw.githubusercontent.com/你的用户名/你的仓库名/main/banner.png" class="banner-img"></div>', unsafe_allow_html=True)
+except:
+    st.title("🏡 Hao Harbour | 伦敦精品房源")
 
-# --- 4. 数据库连接 ---
+# --- 3. 连接数据源 ---
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    df = conn.read(worksheet="Sheet1", ttl=60)
-except Exception:
-    st.info("正在更新房源列表...")
+    # 强制读取最新数据，不使用缓存，确保 Admin 发布后这里立刻更新
+    df = conn.read(worksheet="Sheet1", ttl=0)
+    # 清理掉表格中的全空行，防止索引崩溃
+    df = df.dropna(subset=['title', 'poster-link'])
+except Exception as e:
+    st.error(f"数据加载失败，请联系管理员。详情: {e}")
     st.stop()
 
-# --- 5. 侧边栏与过滤逻辑 ---
-if not df.empty:
-    with st.sidebar:
-        st.markdown("### 🔍 房源筛选")
-        f_reg = st.multiselect("区域", options=df['region'].unique().tolist())
-        f_rm = st.multiselect("房型", options=df['rooms'].unique().tolist())
-        
-        # 价格转换处理
-        df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
-        max_p = int(df['price'].max())
-        f_price = st.slider("最高预算 (£/pcm)", 0, max_p + 500, max_p + 500)
+# --- 4. 侧边栏筛选器 ---
+st.sidebar.header("🔍 房源筛选")
+selected_region = st.sidebar.multiselect("区域", options=df['region'].unique())
+max_price = st.sidebar.slider("最高预算 (£/pcm)", 
+                              min_value=0, 
+                              max_value=int(df['price'].max()) if not df.empty else 10000, 
+                              value=int(df['price'].max()) if not df.empty else 10000)
 
-    filtered = df.copy()
-    if f_reg: filtered = filtered[filtered['region'].isin(f_reg)]
-    if f_rm: filtered = filtered[filtered['rooms'].isin(f_rm)]
-    filtered = filtered[filtered['price'] <= f_price]
+# 过滤逻辑
+filtered_df = df.copy()
+if selected_region:
+    filtered_df = filtered_df[filtered_df['region'].isin(selected_region)]
+filtered_df = filtered_df[filtered_df['price'] <= max_price]
 
-    # --- 6. 房源橱窗展示 ---
-    cols = st.columns(3)
-    for idx, row in filtered.iterrows():
-        with cols[idx % 3]:
-            with st.container(border=True):
-                st.image(row['poster_link'], use_container_width=True)
-                st.markdown(f"**{row['title']}**")
-                st.caption(f"📍 {row['region']} | {row['rooms']}")
-                st.markdown(f"#### :red[£{int(row['price'])} /pcm]")
-                
-                @st.dialog("联系我们")
-                def show_qr(title):
-                    st.write(f"正在咨询: **{title}**")
-                    if os.path.exists("wechat_qr.png"):
-                        st.image("wechat_qr.png", caption="扫码添加微信，获取详细 PDF 资料")
-                    else:
-                        st.warning("微信二维码 (wechat_qr.png) 尚未上传")
-
-                if st.button("💬 立即咨询", key=f"btn_{idx}", use_container_width=True):
-                    show_qr(row['title'])
+# --- 5. 房源展示展厅 ---
+if filtered_df.empty:
+    st.info("⚠️ 暂无符合条件的房源，请调整筛选条件。")
 else:
-    st.info("正在努力加载房源...")
+    # 使用三列布局
+    cols = st.columns(3)
+    
+    for idx, row in filtered_df.iterrows():
+        with cols[idx % 3]:
+            # 使用 container 包裹，增加边框美感
+            with st.container(border=True):
+                # --- 关键防崩溃逻辑：图片链接检查 ---
+                img_url = row.get('poster-link')
+                if pd.isna(img_url) or str(img_url).strip() == "":
+                    # 如果链接为空，显示占位图
+                    st.image("https://via.placeholder.com/400x550?text=Hao+Harbour", use_container_width=True)
+                else:
+                    # 只有链接存在才渲染图片
+                    st.image(img_url, use_container_width=True)
+                
+                st.subheader(f"{row['title']}")
+                st.write(f"📍 区域: {row['region']} | 🛏️ 房型: {row['rooms']}")
+                st.markdown(f"### **£{row['price']:,} /pcm**")
+                
+                # --- 详情弹窗 ---
+                if st.button(f"查看详情", key=f"btn_{idx}"):
+                    @st.dialog(f"房源详情: {row['title']}")
+                    def show_details(item):
+                        st.image(item['poster-link'])
+                        st.markdown("### 📋 房源亮点")
+                        # 显示 DeepSeek 生成的打钩描述
+                        st.write(item['description'])
+                        st.divider()
+                        st.markdown("💬 **联系我们获取更多信息或看房预约**")
+                        st.write("微信客服: HaoHarbour_UK")
+                    
+                    show_details(row)
+
+# --- 6. 底部版权 ---
+st.divider()
+st.caption("© 2026 Hao Harbour Properties. All Rights Reserved.")
