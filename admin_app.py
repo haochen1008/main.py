@@ -9,6 +9,17 @@ import os
 import requests
 from datetime import datetime
 
+# 在发布逻辑中
+new_data = {
+    "date": datetime.now().strftime("%Y-%m-%d"), # 自动记录日期，不带具体时间
+    "title": title,
+    "region": region,
+    "rooms": rooms,
+    "price": price,
+    "poster-link": p_url,
+    "description": final_desc
+}
+
 # --- 1. 页面配置 ---
 st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
 
