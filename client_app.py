@@ -7,7 +7,7 @@ import base64
 # --- 1. 页面配置 ---
 st.set_page_config(page_title="Hao Harbour | London Living", layout="wide")
 
-# --- 2. 深度清理白边与极简 Header 样式 ---
+# --- 2. 增强型样式：自适应 Header 与 隐藏原生侧边栏按钮 ---
 st.markdown("""
     <style>
     .block-container {
@@ -19,67 +19,41 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
+    /* 极简 Header */
     .custom-header {
         background-color: #ffffff;
         display: flex;
         align-items: center;
         justify-content: flex-start;
-        padding: 5px 30px;
+        padding: 5px 20px;
         height: 70px;
         border-bottom: 1px solid #f0f0f0;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        margin-bottom: 25px;
+        margin-bottom: 20px;
     }
-    
-    .logo-container {
-        display: flex;
-        align-items: center;
-        height: 100%;
-    }
+    .logo-img { max-height: 40px; width: auto; margin-right: 15px; }
+    .header-text { border-left: 1px solid #ddd; padding-left: 15px; }
+    .header-title { font-family: 'Times New Roman', serif; font-size: 18px; font-weight: bold; color: #1a1a1a; margin: 0; }
+    .header-subtitle { font-size: 9px; color: #888; letter-spacing: 2px; margin: 0; }
 
-    .logo-img {
-        max-height: 45px;
-        width: auto;
-        margin-right: 25px;
-    }
+    /* 房源卡片圆角 */
+    .stImage > img { border-radius: 12px; }
     
-    .header-text {
-        border-left: 1px solid #ddd;
-        padding-left: 20px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    
-    .header-title {
-        font-family: 'Times New Roman', serif;
-        font-size: 20px;
-        font-weight: bold;
-        color: #1a1a1a;
-        margin: 0;
-        line-height: 1.2;
-    }
-    
-    .header-subtitle {
-        font-size: 10px;
-        color: #888;
-        letter-spacing: 3px;
-        margin: 0;
-        line-height: 1.2;
-    }
-
-    .stImage > img {
-        border-radius: 12px;
+    /* 移动端优化：让筛选器容器更美观 */
+    .filter-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 定义详情弹窗函数 ---
+# --- 3. 弹窗函数 ---
 @st.dialog("房源详情")
 def show_details(item):
     st.image(item['poster-link'], use_container_width=True)
     st.markdown("### 📋 房源亮点")
-    # 显示 DeepSeek 提取的描述
     st.write(item['description'])
     st.divider()
     st.markdown("💬 **联系我们获取详细资料**")
@@ -95,17 +69,13 @@ if os.path.exists(logo_file):
         data = base64.b64encode(f.read()).decode()
     st.markdown(f"""
         <div class="custom-header">
-            <div class="logo-container">
-                <img src="data:image/png;base64,{data}" class="logo-img">
-            </div>
+            <img src="data:image/png;base64,{data}" class="logo-img">
             <div class="header-text">
                 <p class="header-title">HAO HARBOUR</p>
                 <p class="header-subtitle">EXCLUSIVE LONDON LIVING</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
-else:
-    st.markdown("### HAO HARBOUR | EXCLUSIVE LONDON LIVING")
 
 # --- 5. 获取数据 ---
 try:
@@ -116,48 +86,43 @@ except Exception:
     st.info("🏠 正在为您加载最新房源...")
     st.stop()
 
-# --- 6. 侧边栏筛选 ---
-with st.sidebar:
-    st.markdown("### 🔍 房源精选")
-    f_reg = st.multiselect("区域", options=df['region'].unique().tolist())
-    f_rm = st.multiselect("房型", options=df['rooms'].unique().tolist())
-    
-    df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
-    max_p = int(df['price'].max()) if not df.empty else 10000
-    f_price = st.slider("最高月租 (£/pcm)", 0, max_p + 500, max_p)
+# --- 6. 核心修改：自适应筛选布局 ---
+# 在主页面顶部增加一个展开器（Expander），专门用于移动端筛选
+with st.expander("🔍 点击筛选房源 (区域/房型/预算)", expanded=False):
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c1:
+        f_reg = st.multiselect("选择区域", options=df['region'].unique().tolist())
+    with c2:
+        f_rm = st.multiselect("选择房型", options=df['rooms'].unique().tolist())
+    with c3:
+        df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
+        max_p = int(df['price'].max()) if not df.empty else 10000
+        f_price = st.slider("最高月租 (£)", 0, max_p + 500, max_p)
 
+# 过滤逻辑
 filtered = df.copy()
 if f_reg: filtered = filtered[filtered['region'].isin(f_reg)]
 if f_rm: filtered = filtered[filtered['rooms'].isin(f_rm)]
 filtered = filtered[filtered['price'] <= f_price]
 
-# --- 7. 房源橱窗展示 ---
+# --- 7. 房源展示 ---
 st.markdown(f"#### 📍 发现 {len(filtered)} 套精品房源")
 
 if not filtered.empty:
-    # 核心修复：确保 columns 在循环外被正确定义
+    # 使用 3 列布局，Streamlit 在手机端会自动将其转为 1 列，体验完美
     main_cols = st.columns(3)
-    
     for i, (idx, row) in enumerate(filtered.iterrows()):
-        # 依次放入三列中
         col_to_use = main_cols[i % 3]
-        
         with col_to_use:
             with st.container(border=True):
-                # 封面图
                 st.image(row['poster-link'], use_container_width=True)
-                
-                # 信息描述
                 st.markdown(f"**{row['title']}**")
                 st.caption(f"📍 {row['region']} | 🛏️ {row['rooms']}")
                 st.markdown(f"#### :red[£{int(row['price']):,} /pcm]")
-                
-                # 详情按钮：使用 row 的原始索引确保 Key 唯一
                 if st.button("查看详情 & 联系", key=f"btn_{idx}", use_container_width=True):
                     show_details(row)
 else:
-    st.warning("没有找到符合条件的房源，请尝试调整筛选。")
+    st.warning("没有找到符合条件的房源。")
 
-# --- 8. 底部 ---
 st.divider()
 st.caption("© 2026 Hao Harbour Properties.")
