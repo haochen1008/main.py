@@ -21,7 +21,7 @@ try:
 st.image("banner.png", use_container_width=True)
 
 # 或者如果你想更精准控制，可以使用下面的 HTML 方式：
-st.markdown('<img src="banner.png" style="width:100%; height:150px; object-fit:cover; border-radius:10px;">', unsafe_allow_html=True)
+#st.markdown('<img src="banner.png" style="width:100%; height:150px; object-fit:cover; border-radius:10px;">', unsafe_allow_html=True)
 except:
     # 如果图片加载失败（比如还没上传），则显示默认标题
     st.title("🏡 Hao Harbour | 伦敦房源精选")
