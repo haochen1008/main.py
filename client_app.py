@@ -14,7 +14,7 @@ st.markdown("""
     .block-container {
         padding-top: 0rem !important; 
         padding-bottom: 0rem !important;
-        margin-top: -45px; /* 进一步向上提拉，消除白边 */
+        margin-top: -10px; /* 进一步向上提拉，消除白边 */
     }
     header {visibility: hidden;} 
     #MainMenu {visibility: hidden;}
@@ -27,7 +27,7 @@ st.markdown("""
         align-items: center;
         justify-content: flex-start;
         padding: 5px 30px;
-        height: 70px;
+        height: 100px;
         border-bottom: 1px solid #f0f0f0;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         margin-bottom: 25px;
@@ -40,7 +40,7 @@ st.markdown("""
     }
 
     .logo-img {
-        max-height: 45px;
+        max-height: 100px;
         width: auto;
         margin-right: 25px;
     }
@@ -79,7 +79,7 @@ st.markdown("""
 
 # --- 3. 渲染极简 Header ---
 # 自动检测 logo.png 或 logo.jpg
-logo_file = "logo.png" if os.path.exists("logo.png") else "logo.jpg"
+logo_file = "logo.jpg" if os.path.exists("logo.png") else "logo.jpg"
 if os.path.exists(logo_file):
     with open(logo_file, "rb") as f:
         data = base64.b64encode(f.read()).decode()
