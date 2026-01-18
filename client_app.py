@@ -17,7 +17,7 @@ st.markdown("""
 # --- 2. 顶部 Banner 区域 ---
 # 确保你的 GitHub 仓库里有名为 banner.jpg 的文件
 try:
-    st.image("banner.jpg", use_container_width=True)
+    st.image("banner.png", use_container_width=True)
 except:
     st.title("🏡 Hao Harbour | 伦敦房源精选")
 
