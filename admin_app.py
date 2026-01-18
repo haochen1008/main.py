@@ -10,7 +10,7 @@ from datetime import datetime
 # --- 1. 初始化配置 ---
 st.set_page_config(page_title="Hao Harbour 后台管理", layout="centered")
 
-# Cloudinary 配置 (从 Secrets 读取)
+# Cloudinary 配置
 try:
     cloudinary.config(
         cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
@@ -18,35 +18,27 @@ try:
         api_secret = st.secrets["CLOUDINARY_API_SECRET"]
     )
 except:
-    st.error("❌ Cloudinary 配置缺失，请检查 Streamlit Secrets")
+    st.error("❌ Cloudinary 配置未找到，请检查 Streamlit Secrets")
 
 # --- 2. 核心函数：生成房源海报 ---
 def create_poster(files, title):
     try:
-        # 创建一个纯白背景的海报 (800x1000)
         poster = Image.new('RGB', (800, 1000), color='white')
-        
-        # 取得第一张图片作为主图并缩放
-        main_img = Image.open(files[0])
-        main_img = main_img.convert("RGB")
-        # 保持比例缩放
+        main_img = Image.open(files[0]).convert("RGB")
         main_img.thumbnail((800, 600))
         poster.paste(main_img, (0, 0))
         
-        # 简单的文字装饰
         draw = ImageDraw.Draw(poster)
-        # 如果没有字体文件，使用默认字体
         try:
             font = ImageFont.truetype("simhei.ttf", 40)
         except:
             font = ImageFont.load_default()
             
-        draw.text((40, 650), f"Hao Harbour 精选", fill="black", font=font)
-        draw.text((40, 720), title, fill="gold", font=font)
-        
+        draw.text((40, 650), "Hao Harbour 精选房源", fill="black", font=font)
+        draw.text((40, 720), title[:20], fill="#D4AF37", font=font) # 使用金色
         return poster
     except Exception as e:
-        st.error(f"海报生成失败原因: {e}")
+        st.error(f"海报生成失败: {e}")
         return None
 
 # --- 3. 页面 UI ---
@@ -55,47 +47,50 @@ st.title("🏡 房源发布系统")
 with st.form("upload_form"):
     title = st.text_input("房源标题 (例: Thames City)")
     region = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"])
-    rooms = st.text_input("房型 (例: 1B1B)")
+    rooms = st.text_input("房型 (例: 2B2B)")
     price = st.number_input("月租 (£/pcm)", min_value=0)
-    files = st.file_uploader("上传房源照片 (第一张将作为主图)", accept_multiple_files=True)
     
-    submit = st.form_submit_button("🚀 生成并发布房源")
+    # --- 找回你调试很久的 Description 字段 ---
+    description = st.text_area("房源详细描述 (Description)", height=150, help="在这里输入房源的详细介绍、周边配套等信息")
+    
+    files = st.file_uploader("上传图片", accept_multiple_files=True)
+    submit = st.form_submit_button("🚀 立即发布")
 
 if submit:
-    if not files or not title:
-        st.warning("请填写标题并上传图片")
+    if not files or not title or not description:
+        st.warning("标题、描述和图片都是必填项哦！")
     else:
-        with st.spinner("正在处理房源并上传云端..."):
-            # 1. 生成海报
+        with st.spinner("正在上传并同步数据..."):
             poster_img = create_poster(files, title)
             
             if poster_img:
-                # 2. 将海报转为二进制流用于上传
+                # 图片转二进制
                 img_byte_arr = io.BytesIO()
                 poster_img.save(img_byte_arr, format='JPEG')
-                img_byte_arr = img_byte_arr.getvalue()
                 
-                # 3. 上传到 Cloudinary
-                upload_result = cloudinary.uploader.upload(img_byte_arr)
+                # 上传 Cloudinary
+                upload_result = cloudinary.uploader.upload(img_byte_arr.getvalue())
                 poster_url = upload_result.get("secure_url")
                 
-                # 4. 写入 Google Sheets
+                # 写入 Google Sheets (包含 description)
                 try:
                     conn = st.connection("gsheets", type=GSheetsConnection)
-                    # 先读取旧数据
                     existing_df = conn.read(worksheet="Sheet1")
-                    new_data = pd.DataFrame([{
+                    
+                    new_row = {
                         "title": title,
                         "region": region,
                         "rooms": rooms,
                         "price": price,
+                        "description": description, # 确保表格里有这一列
                         "poster_link": poster_url,
                         "date": datetime.now().strftime("%Y-%m-%d")
-                    }])
-                    updated_df = pd.concat([existing_df, new_data], ignore_index=True)
+                    }
+                    
+                    updated_df = pd.concat([existing_df, pd.DataFrame([new_row])], ignore_index=True)
                     conn.update(worksheet="Sheet1", data=updated_df)
                     
-                    st.success("✅ 房源发布成功！")
-                    st.image(poster_url, caption="已生成的线上海报")
+                    st.success("✅ 房源已发布！Description 已同步到表格。")
+                    st.image(poster_url)
                 except Exception as e:
-                    st.error(f"表格写入失败: {e}")
+                    st.error(f"同步到表格失败: {e}")
