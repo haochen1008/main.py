@@ -14,7 +14,7 @@ st.markdown("""
     .block-container {
         padding-top: 0rem !important; 
         padding-bottom: 0rem !important;
-        margin-top: -60px; /* 进一步向上提拉 */
+        margin-top: 0px; /* 进一步向上提拉 */
     }
     header {visibility: hidden;} /* 隐藏 Streamlit 原生 Header */
     #MainMenu {visibility: hidden;}
