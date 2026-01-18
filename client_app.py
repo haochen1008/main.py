@@ -2,59 +2,82 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 
-# --- 1. 页面配置 ---
-st.set_page_config(page_title="Hao Harbour | Exclusive London Living", layout="wide")
+# --- 1. 页面配置与视觉优化 ---
+st.set_page_config(page_title="Hao Harbour | London Excellence", layout="wide")
 
-# 自定义样式：控制 Logo 和 Banner 间距
+# 核心 CSS：消除顶部白边，并让 Logo 和 Banner 优雅并排
 st.markdown("""
     <style>
-    .main .block-container { padding-top: 1rem; }
-    .stImage > img { border-radius: 8px; }
+    /* 消除顶部默认间距 */
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+    }
+    
+    /* 品牌头部容器：Logo 和 Banner 横向排布 */
+    .header-container {
+        display: flex;
+        align-items: center; /* 垂直居中 */
+        gap: 20px;           /* 两者间距 */
+        padding: 15px 0;
+        background-color: white;
+    }
+    
+    .logo-img {
+        height: 80px;        /* 限制 Logo 高度，防止变成大白块 */
+        object-fit: contain;
+    }
+    
+    .banner-img {
+        flex-grow: 1;        /* Banner 占据剩余空间 */
+        height: 120px;       /* 限制 Banner 高度 */
+        object-fit: cover;   /* 裁剪填充，不拉伸变形 */
+        border-radius: 10px;
+    }
+    
+    /* 房源卡片样式 */
+    .stImage > img {
+        border-radius: 12px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 品牌元素展示 (Banner & Logo) ---
-col_logo, col_empty = st.columns([1, 4])
-with col_logo:
-    try:
-        st.image("logo.jpg", width=150) # 确保 GitHub 根目录有 logo.jpg
-    except:
-        st.subheader("Hao Harbour")
+# --- 2. 品牌元素 (Logo + Banner 并排) ---
+# 注意：确保 GitHub 仓库中有 logo.jpg 和 banner.png，或者替换为你的图片链接
+st.markdown(f"""
+    <div class="header-container">
+        <img src="https://raw.githubusercontent.com/{st.secrets.get('GITHUB_USER', 'yourname')}/{st.secrets.get('GITHUB_REPO', 'yourrepo')}/main/logo.jpg" class="logo-img">
+        <img src="https://raw.githubusercontent.com/{st.secrets.get('GITHUB_USER', 'yourname')}/{st.secrets.get('GITHUB_REPO', 'yourrepo')}/main/banner.png" class="banner-img">
+    </div>
+""", unsafe_allow_html=True)
 
-# 展示顶部的横幅 Banner
-try:
-    st.image("banner.png", use_container_width=True) # 确保 GitHub 根目录有 banner.png
-except:
-    pass
-
-# --- 3. 获取数据 ---
+# --- 3. 连接数据源 ---
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    # ttl=0 确保每次刷新都能看到 Admin 刚发出的 DeepSeek 描述
     df = conn.read(worksheet="Sheet1", ttl=0)
-    
-    # 清理：只保留有标题和图片链接的行，防止客户端报错崩溃
+    # 彻底清理空行，防止崩溃
     df = df.dropna(subset=['title', 'poster-link'])
 except Exception as e:
-    st.error(f"连接数据库失败: {e}")
+    st.error("正在加载精选房源...")
     st.stop()
 
-# --- 4. 侧边栏筛选 (找回房型筛选) ---
-st.sidebar.title("🔍 房源筛选")
+# --- 4. 侧边栏筛选 (保留你要求的房型筛选) ---
+st.sidebar.markdown("## 🔍 房源筛选")
 
-# 区域筛选
-regions = df['region'].unique().tolist()
-selected_region = st.sidebar.multiselect("选择区域", options=regions)
+with st.sidebar:
+    # 区域多选
+    all_regions = df['region'].unique().tolist()
+    selected_region = st.multiselect("选择区域", options=all_regions)
 
-# 房型筛选 (找回这部分)
-room_types = df['rooms'].unique().tolist()
-selected_rooms = st.sidebar.multiselect("选择房型", options=room_types)
+    # 房型多选 (找回房型)
+    all_rooms = df['rooms'].unique().tolist()
+    selected_rooms = st.multiselect("选择房型", options=all_rooms)
 
-# 价格筛选
-max_p = int(df['price'].max()) if not df.empty else 10000
-price_limit = st.sidebar.slider("最高月租 (£/pcm)", 0, max_p, max_p)
+    # 价格滑动条
+    max_p = int(df['price'].max()) if not df.empty else 10000
+    price_limit = st.sidebar.slider("最高月租 (£/pcm)", 0, max_p, max_p)
 
-# 执行数据过滤
+# 执行过滤逻辑
 filtered = df.copy()
 if selected_region:
     filtered = filtered[filtered['region'].isin(selected_region)]
@@ -62,44 +85,44 @@ if selected_rooms:
     filtered = filtered[filtered['rooms'].isin(selected_rooms)]
 filtered = filtered[filtered['price'] <= price_limit]
 
-# --- 5. 房源展厅 ---
-st.markdown(f"### 📍 发现 {len(filtered)} 套精选房源")
+# --- 5. 房源展示 ---
+st.markdown(f"### 📍 发现 {len(filtered)} 套精品房源")
 
 if filtered.empty:
-    st.warning("没有找到符合条件的房源。")
+    st.info("房源库正在更新中...")
 else:
-    # 三列排列
-    display_cols = st.columns(3)
+    # 保持三列布局
+    grid_cols = st.columns(3)
     
     for i, (_, row) in enumerate(filtered.iterrows()):
-        with display_cols[i % 3]:
+        with grid_cols[i % 3]:
             with st.container(border=True):
-                # 图片展示逻辑 (防崩溃)
-                p_link = row['poster-link']
-                if pd.isna(p_link) or str(p_link).strip() == "":
-                    st.image("https://via.placeholder.com/400x500?text=Image+Updating", use_container_width=True)
+                # 图片渲染及防错处理
+                img_url = row['poster-link']
+                if pd.isna(img_url) or str(img_url).strip() == "":
+                    st.image("https://via.placeholder.com/400x500?text=Hao+Harbour", use_container_width=True)
                 else:
-                    st.image(p_link, use_container_width=True)
+                    st.image(img_url, use_container_width=True)
                 
-                # 基本信息
+                # 文字信息
                 st.markdown(f"**{row['title']}**")
-                st.markdown(f"📍 {row['region']} | 🛏️ {row['rooms']}")
-                st.markdown(f"#### £{row['price']:,} /pcm")
+                st.markdown(f"**{row['rooms']}** | {row['region']}")
+                st.markdown(f"#### **£{row['price']:,} /pcm**")
                 
-                # 找回 Description 的弹窗显示
-                if st.button("查看详情", key=f"details_{i}"):
+                # 查看详情弹窗
+                if st.button("查看详情", key=f"view_{i}"):
                     @st.dialog(f"{row['title']}")
-                    def modal(item):
-                        st.image(item['poster-link'], use_container_width=True)
+                    def show_info(data):
+                        st.image(data['poster-link'], use_container_width=True)
                         st.markdown("### 📋 房源亮点")
-                        # 这里显示的是 DeepSeek 生成的带 ✔ 的描述
-                        st.write(item['description']) 
+                        # 完美适配 DeepSeek 生成的打钩格式
+                        st.write(data['description'])
                         st.divider()
-                        st.markdown("💬 **联系我们获取更多信息**")
-                        st.markdown("微信: HaoHarbour_UK")
+                        st.markdown("💬 **联系我们看房**")
+                        st.markdown("WeChat: HaoHarbour_UK")
                     
-                    modal(row)
+                    show_info(row)
 
 # --- 6. 底部 ---
 st.divider()
-st.caption("© 2026 Hao Harbour Properties - Exclusive London Living")
+st.caption("© 2026 Hao Harbour Properties. All Rights Reserved.")
