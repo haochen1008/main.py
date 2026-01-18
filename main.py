@@ -1,4 +1,15 @@
 import streamlit as st
+from PIL import Image, ImageDraw, ImageFont
+from streamlit_gsheets import GSheetsConnection
+import cloudinary
+import cloudinary.uploader
+import requests
+import io
+import os
+import re
+import pandas as pd
+from datetime import datetime
+
 # ... 其他引用保持不变 ...
 
 # --- 1. 云端配置 (增加 Key 存在性检查) ---
@@ -13,18 +24,6 @@ else:
     st.stop() # 停止运行，防止后续崩溃
 
 # ... 后续代码保持不变 ...
-import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
-from streamlit_gsheets import GSheetsConnection
-import cloudinary
-import cloudinary.uploader
-import requests
-import io
-import os
-import re
-import pandas as pd
-from datetime import datetime
-
 # --- 1. 配置云端连接 ---
 st.set_page_config(page_title="Hao Harbour 房源旗舰店", layout="wide")
 
