@@ -3,97 +3,124 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import os
 
-# --- 1. 页面基础配置 ---
-st.set_page_config(page_title="Hao Harbour | 伦敦房源精选", layout="wide")
+# --- 1. 页面配置 ---
+st.set_page_config(page_title="Hao Harbour", layout="wide")
 
-# --- 2. 核心样式表 (CSS) ---
+# --- 2. 核心 CSS 样式（控制超窄横幅和去白边） ---
 st.markdown("""
     <style>
+    /* 1. 消除顶部巨大的空白 */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 0rem !important;
+    }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* 调整容器边距，让 Banner 更贴合顶部 */
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 0rem;
+
+    /* 2. 定义超窄横幅样式 */
+    .custom-header {
+        background-color: #ffffff;
+        border-bottom: 1px solid #eeeeee;
+        display: flex;
+        align-items: center;
+        padding: 10px 20px;
+        margin-bottom: 20px;
+        border-radius: 5px;
     }
     
-    /* 按钮颜色微调（深蓝/金色系） */
-    .stButton>button {
-        border-radius: 5px;
-        border: 1px solid #d4af37;
+    .logo-img {
+        height: 50px; /* 强制 Logo 高度为 50 像素，非常窄 */
+        margin-right: 20px;
+    }
+    
+    .header-text {
+        border-left: 1px solid #ccc;
+        padding-left: 20px;
+    }
+    
+    .header-title {
+        font-family: 'serif';
+        font-size: 22px;
+        font-weight: bold;
+        color: #1a1a1a;
+        margin: 0;
+    }
+    
+    .header-subtitle {
+        font-size: 12px;
+        color: #666;
+        letter-spacing: 2px;
+        margin: 0;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 顶部 Banner 区域 ---
-# 使用 st.columns 来控制 Banner 的宽度比例，或者直接居中显示
-if os.path.exists("banner.png"):
-    # 这里的 use_container_width=True 会自动适应页面宽度
-    # 因为图片本身就是窄长的，所以它不会占据太多纵向高度
-    st.image("banner.png", use_container_width=True)
+# --- 3. 渲染超窄横幅 ---
+# 我们改用直接读 Logo 文件配合 CSS 的方式
+logo_path = "logo.jpg" # 请确保 GitHub 上的文件名叫 logo.png
+if os.path.exists(logo_path):
+    import base64
+    def get_base64(path):
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    
+    logo_base64 = get_base64(logo_path)
+    
+    st.markdown(f"""
+        <div class="custom-header">
+            <img src="data:image/png;base64,{logo_base64}" class="logo-img">
+            <div class="header-text">
+                <p class="header-title">HAO HARBOUR</p>
+                <p class="header-subtitle">EXCLUSIVE LONDON LIVING</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 else:
-    st.markdown("<h1 style='text-align: center; color: #1E1E1E;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 1.2em;'>EXCLUSIVE LONDON LIVING</p>", unsafe_allow_html=True)
+    st.markdown("### HAO HARBOUR | EXCLUSIVE LONDON LIVING")
 
-st.divider()
-
-# --- 4. 连接数据库 ---
+# --- 4. 数据库连接 ---
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    df = conn.read(worksheet="Sheet1", ttl=300)
-except Exception as e:
-    st.error("正在连接数据库，请稍候...")
+    df = conn.read(worksheet="Sheet1", ttl=60)
+except Exception:
+    st.error("正在同步房源数据...")
     st.stop()
 
-# --- 5. 侧边栏筛选器 ---
+# --- 5. 侧边栏与过滤逻辑 ---
 if not df.empty:
     with st.sidebar:
         st.markdown("### 🔍 房源筛选")
-        f_reg = st.multiselect("选择区域", options=df['region'].unique().tolist())
-        f_rm = st.multiselect("选择房型", options=df['rooms'].unique().tolist())
+        f_reg = st.multiselect("区域", options=df['region'].unique().tolist())
+        f_rm = st.multiselect("房型", options=df['rooms'].unique().tolist())
         
-        # 价格滑块逻辑
         prices = pd.to_numeric(df['price'], errors='coerce').fillna(0)
         max_p = int(prices.max())
-        f_price = st.slider("最高月租 (£/pcm)", 0, max_p + 500, max_p + 500)
+        f_price = st.slider("最高预算 (£/pcm)", 0, max_p + 500, max_p + 500)
 
-    # 过滤逻辑
     filtered = df.copy()
     filtered['price'] = pd.to_numeric(filtered['price'], errors='coerce')
     if f_reg: filtered = filtered[filtered['region'].isin(f_reg)]
     if f_rm: filtered = filtered[filtered['rooms'].isin(f_rm)]
     filtered = filtered[filtered['price'] <= f_price]
 
-    # --- 6. 房源橱窗展示 ---
-    if not filtered.empty:
-        cols = st.columns(3)
-        for idx, row in filtered.iterrows():
-            with cols[idx % 3]:
-                with st.container(border=True):
-                    # 房源图片
-                    st.image(row['poster_link'], use_container_width=True)
-                    st.markdown(f"### {row['title']}")
-                    st.write(f"📍 {row['region']} | 🏠 {row['rooms']}")
-                    st.markdown(f"#### :red[£{row['price']} /pcm]")
-                    
-                    # 弹窗功能
-                    @st.dialog("联系 Hao Harbour 专属顾问")
-                    def show_contact(prop_name):
-                        st.write(f"您正在咨询：**{prop_name}**")
-                        if os.path.exists("wechat_qr.png"):
-                            st.image("wechat_qr.png", caption="扫码添加微信")
-                        else:
-                            st.warning("请在仓库中上传 wechat_qr.png")
-                        st.info("💡 建议备注：咨询 " + prop_name)
+    # --- 6. 展示房源 ---
+    cols = st.columns(3)
+    for idx, row in filtered.iterrows():
+        with cols[idx % 3]:
+            with st.container(border=True):
+                st.image(row['poster_link'], use_container_width=True)
+                st.markdown(f"**{row['title']}**")
+                st.caption(f"📍 {row['region']} | {row['rooms']}")
+                st.markdown(f"#### :red[£{row['price']}]")
+                
+                @st.dialog("联系我们")
+                def show_qr(title):
+                    st.write(f"咨询房源: {title}")
+                    if os.path.exists("wechat_qr.png"):
+                        st.image("wechat_qr.png")
+                    st.info("扫码添加微信，获取详细 PDF 资料")
 
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        st.link_button("📄 查看大图", row['poster_link'], use_container_width=True)
-                    with c2:
-                        if st.button("💬 立即咨询", key=f"btn_{idx}", use_container_width=True):
-                            show_contact(row['title'])
-    else:
-        st.info("没有找到匹配的房源。")
+                if st.button("💬 立即咨询", key=f"b_{idx}", use_container_width=True):
+                    show_qr(row['title'])
 else:
-    st.info("房源库正在努力更新中...")
+    st.info("正在加载精选房源...")
