@@ -7,19 +7,14 @@ import base64
 # --- 1. 页面配置 ---
 st.set_page_config(page_title="Hao Harbour | London Living", layout="wide")
 
-# --- 2. 增强型样式：自适应 Header 与 隐藏原生侧边栏按钮 ---
+# --- 2. 增强型样式 ---
 st.markdown("""
     <style>
-    .block-container {
-        padding-top: 0rem !important; 
-        padding-bottom: 0rem !important;
-        margin-top: -45px; 
-    }
+    .block-container { padding-top: 0rem !important; padding-bottom: 0rem !important; margin-top: -45px; }
     header {visibility: hidden;} 
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
-    /* 极简 Header */
     .custom-header {
         background-color: #ffffff;
         display: flex;
@@ -35,24 +30,19 @@ st.markdown("""
     .header-text { border-left: 1px solid #ddd; padding-left: 15px; }
     .header-title { font-family: 'Times New Roman', serif; font-size: 18px; font-weight: bold; color: #1a1a1a; margin: 0; }
     .header-subtitle { font-size: 9px; color: #888; letter-spacing: 2px; margin: 0; }
-
-    /* 房源卡片圆角 */
+    
     .stImage > img { border-radius: 12px; }
     
-    /* 移动端优化：让筛选器容器更美观 */
-    .filter-box {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
+    /* 日期标签样式 */
+    .date-label { color: #888; font-size: 12px; margin-bottom: 5px; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 弹窗函数 ---
+# --- 3. 弹窗函数 (增加日期显示) ---
 @st.dialog("房源详情")
 def show_details(item):
     st.image(item['poster-link'], use_container_width=True)
+    st.markdown(f"**📅 发布日期: {item['date']}**") # 弹窗显示日期
     st.markdown("### 📋 房源亮点")
     st.write(item['description'])
     st.divider()
@@ -86,8 +76,7 @@ except Exception:
     st.info("🏠 正在为您加载最新房源...")
     st.stop()
 
-# --- 6. 核心修改：自适应筛选布局 ---
-# 在主页面顶部增加一个展开器（Expander），专门用于移动端筛选
+# --- 6. 自适应筛选布局 ---
 with st.expander("🔍 点击筛选房源 (区域/房型/预算)", expanded=False):
     c1, c2, c3 = st.columns([1, 1, 1])
     with c1:
@@ -99,7 +88,6 @@ with st.expander("🔍 点击筛选房源 (区域/房型/预算)", expanded=Fals
         max_p = int(df['price'].max()) if not df.empty else 10000
         f_price = st.slider("最高月租 (£)", 0, max_p + 500, max_p)
 
-# 过滤逻辑
 filtered = df.copy()
 if f_reg: filtered = filtered[filtered['region'].isin(f_reg)]
 if f_rm: filtered = filtered[filtered['rooms'].isin(f_rm)]
@@ -109,7 +97,6 @@ filtered = filtered[filtered['price'] <= f_price]
 st.markdown(f"#### 📍 发现 {len(filtered)} 套精品房源")
 
 if not filtered.empty:
-    # 使用 3 列布局，Streamlit 在手机端会自动将其转为 1 列，体验完美
     main_cols = st.columns(3)
     for i, (idx, row) in enumerate(filtered.iterrows()):
         col_to_use = main_cols[i % 3]
@@ -118,6 +105,10 @@ if not filtered.empty:
                 st.image(row['poster-link'], use_container_width=True)
                 st.markdown(f"**{row['title']}**")
                 st.caption(f"📍 {row['region']} | 🛏️ {row['rooms']}")
+                
+                # 在此插入日期显示
+                st.markdown(f"<div class='date-label'>📅 {row['date']}</div>", unsafe_allow_html=True)
+                
                 st.markdown(f"#### :red[£{int(row['price']):,} /pcm]")
                 if st.button("查看详情 & 联系", key=f"btn_{idx}", use_container_width=True):
                     show_details(row)
