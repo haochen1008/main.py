@@ -7,151 +7,145 @@ import io
 import pandas as pd
 from datetime import datetime
 import requests
-import json
 
-# --- 1. 初始化配置 ---
+# --- 1. 页面配置 ---
 st.set_page_config(page_title="Hao Harbour 后台管理", layout="wide")
 
-# 配置 Cloudinary
-cloudinary.config(
-    cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
-    api_key = st.secrets["CLOUDINARY_API_KEY"],
-    api_secret = st.secrets["CLOUDINARY_API_SECRET"]
-)
-
-# --- 2. 核心功能：AI 智能提取并翻译 Description ---
-def call_ai_summary(raw_text):
-    """
-    调用 AI 接口将英文房源信息提取为中文要点 (对应你照片里的格式)
-    这里假设你使用的是类似 OpenAI 或 Groq 的 API
-    """
+# --- 2. 检查并配置云端服务 ---
+def init_services():
     try:
-        # 如果你之前调试好了 API，请替换这里的 URL 和 API_KEY
+        cloudinary.config(
+            cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
+            api_key = st.secrets["CLOUDINARY_API_KEY"],
+            api_secret = st.secrets["CLOUDINARY_API_SECRET"]
+        )
+        return True
+    except:
+        st.error("❌ Cloudinary Secrets 配置缺失")
+        return False
+
+# --- 3. AI 智能提取函数 ---
+def call_ai_summary(raw_text):
+    if "OPENAI_API_KEY" not in st.secrets:
+        return "⚠️ 请先在 Streamlit 后台 Settings -> Secrets 中配置 OPENAI_API_KEY"
+    
+    try:
+        # 这里建议使用更稳定的 api 地址，如果你有转发地址请更换
         api_url = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
             "Content-Type": "application/json"
         }
-        prompt = f"""
-        请将以下英文房源描述转换为中文短句，要求：
-        1. 使用打勾符号 '✔' 开头。
-        2. 包含标题、租金、房型面积、交通通勤、大楼设施、生活环境等关键点。
-        3. 语言专业、精炼。
-        内容如下：{raw_text}
-        """
+        prompt = f"请将以下房源描述提取为中文要点，每行以 ✔ 开头，包含标题、租金、房型面积、交通设施等：\n\n{raw_text}"
         payload = {
             "model": "gpt-3.5-turbo",
             "messages": [{"role": "user", "content": prompt}]
         }
-        response = requests.post(api_url, headers=headers, json=payload)
+        response = requests.post(api_url, headers=headers, json=payload, timeout=30)
         return response.json()['choices'][0]['message']['content']
     except Exception as e:
-        # 如果 AI 调用失败，返回原始文本，避免程序崩溃
-        return f"AI 摘要生成失败，请手动编辑。错误: {e}"
+        return f"AI 提取失败，请检查网络或 Key。错误: {str(e)}"
 
-# --- 3. 核心功能：生成九宫格海报 ---
-def create_poster(files, title):
+# --- 4. 稳健的海报生成函数 ---
+def create_poster(files, title_text):
     try:
-        # 创建一个更长的画布来容纳更多图片
-        poster_w, poster_h = 800, 1200
-        poster = Image.new('RGB', (poster_w, poster_h), color='white')
+        # 创建画布
+        poster = Image.new('RGB', (800, 1100), color='white')
         
-        # 简单拼图逻辑：取前 4 张图做成田字格
-        img_size = 395
+        # 拼图：尝试拼接前4张图
+        img_w, img_h = 398, 398
         for i, file in enumerate(files[:4]):
             img = Image.open(file).convert("RGB")
-            img = img.resize((img_size, img_size), Image.Resampling.LANCZOS)
-            x = (i % 2) * 405
-            y = (i // 2) * 405
-            poster.paste(img, (x, y))
+            # 缩放并居中裁剪
+            img.thumbnail((800, 800)) 
+            x = (i % 2) * 402
+            y = (i // 2) * 402
+            poster.paste(img.resize((img_w, img_h)), (x, y))
         
         draw = ImageDraw.Draw(poster)
+        # 加载字体
         try:
-            # 确保你仓库里有 simhei.ttf 字体文件
-            font_title = ImageFont.truetype("simhei.ttf", 45)
-            font_brand = ImageFont.truetype("simhei.ttf", 30)
+            # 确保你的 GitHub 仓库根目录有这个字体文件
+            font_main = ImageFont.truetype("simhei.ttf", 45)
+            font_sub = ImageFont.truetype("simhei.ttf", 30)
         except:
-            font_title = font_brand = ImageFont.load_default()
-            
-        # 底部文字装饰
-        draw.text((30, 850), "Hao Harbour | 伦敦房源精选", fill="#D4AF37", font=font_brand)
-        draw.text((30, 910), title[:25], fill="black", font=font_title)
+            font_main = font_sub = ImageFont.load_default()
+
+        # 绘制文字区域
+        draw.text((30, 850), "Hao Harbour | 伦敦精品房源", fill="#D4AF37", font=font_sub)
+        draw.text((30, 910), title_text[:20], fill="black", font=font_main)
+        
+        # 模拟水印
+        draw.text((600, 1050), "Hao Harbour", fill="#eeeeee", font=font_sub)
         
         return poster
     except Exception as e:
-        st.error(f"海报生成逻辑出错: {e}")
+        st.error(f"海报渲染错误: {e}")
         return None
 
-# --- 4. 页面 UI 设计 ---
-st.title("🚀 Hao Harbour 房源智能发布系统")
-
-with st.sidebar:
-    st.header("⚙️ 配置检查")
-    st.success("Cloudinary 已连接")
-    st.info("AI 智能提取已就绪")
-
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    st.subheader("1. 输入房源详情")
-    title = st.text_input("房源标题")
-    region = st.selectbox("区域", ["City of London", "Canary Wharf", "South Kensington", "Nine Elms", "Other"])
-    rooms = st.text_input("房型 (如 2B2B)")
-    price = st.number_input("月租 (£/pcm)", min_value=0)
+# --- 5. 主页面逻辑 ---
+if init_services():
+    st.title("🚀 Hao Harbour 房源发布系统")
     
-    raw_desc = st.text_area("粘贴英文原始描述 (用于 AI 提取)", height=200)
-    if st.button("✨ 智能提取 Description"):
-        if raw_desc:
-            with st.spinner("AI 正在分析并翻译..."):
-                st.session_state.processed_desc = call_ai_summary(raw_desc)
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("1. 录入信息")
+        in_title = st.text_input("房源名称")
+        in_region = st.selectbox("区域", ["City of London", "Canary Wharf", "South Kensington", "Nine Elms", "Other"])
+        in_rooms = st.text_input("房型 (如 2B2B)")
+        in_price = st.number_input("月租 (£/pcm)", min_value=0)
+        
+        raw_en_text = st.text_area("粘贴英文描述 (用于 AI 提取)", height=200)
+        if st.button("✨ 智能提取描述"):
+            if raw_en_text:
+                with st.spinner("AI 正在分析..."):
+                    st.session_state.processed_desc = call_ai_summary(raw_en_text)
+            else:
+                st.warning("请先粘贴内容")
+
+    with col2:
+        st.subheader("2. 预览与上传")
+        # 这里的 desc 允许手动修改
+        final_desc = st.text_area("最终 Description (中文要点)", 
+                                 value=st.session_state.get('processed_desc', ""), 
+                                 height=300)
+        
+        in_files = st.file_uploader("上传房源照片 (前4张将组成海报)", accept_multiple_files=True)
+
+    if st.button("📢 确认无误，正式发布"):
+        if not in_files or not in_title or not final_desc:
+            st.error("请确保标题、照片和 Description 都已填写")
         else:
-            st.warning("请先粘贴英文内容")
-
-with col2:
-    st.subheader("2. 预览并上传")
-    # 编辑 AI 生成的内容
-    final_desc = st.text_area("最终 Description (可手动微调)", 
-                              value=st.session_state.get('processed_desc', ""), 
-                              height=300)
-    
-    uploaded_files = st.file_uploader("上传房源照片 (第一张为主图)", accept_multiple_files=True)
-
-# --- 5. 提交发布逻辑 ---
-if st.button("📢 确认发布至云端"):
-    if not uploaded_files or not title or not final_desc:
-        st.error("请确保标题、描述和照片都已就绪！")
-    else:
-        with st.spinner("正在同步海报、云端及表格..."):
-            # A. 生成海报
-            poster_obj = create_poster(uploaded_files, title)
-            
-            if poster_obj:
-                # B. 上传海报到 Cloudinary
-                buf = io.BytesIO()
-                poster_obj.save(buf, format='JPEG')
-                up_res = cloudinary.uploader.upload(buf.getvalue())
-                p_url = up_res.get("secure_url")
-                
-                # C. 写入 Google Sheets (严格按照你的列顺序)
-                try:
-                    conn = st.connection("gsheets", type=GSheetsConnection)
-                    existing_df = conn.read(worksheet="Sheet1")
+            with st.spinner("正在上传图片并同步表格..."):
+                # A. 生成并上传海报
+                poster_obj = create_poster(in_files, in_title)
+                if poster_obj:
+                    buf = io.BytesIO()
+                    poster_obj.save(buf, format='JPEG')
+                    up_res = cloudinary.uploader.upload(buf.getvalue())
+                    p_url = up_res.get("secure_url")
                     
-                    # 按照你要求的顺序排列：date title region rooms price poster-link description
-                    new_entry = {
-                        "date": datetime.now().strftime("%Y-%m-%d"),
-                        "title": title,
-                        "region": region,
-                        "rooms": rooms,
-                        "price": price,
-                        "poster-link": p_url,
-                        "description": final_desc
-                    }
-                    
-                    updated_df = pd.concat([existing_df, pd.DataFrame([new_entry])], ignore_index=True)
-                    conn.update(worksheet="Sheet1", data=updated_df)
-                    
-                    st.success("✅ 全部发布成功！")
-                    st.image(p_url, caption="在线海报预览")
-                except Exception as e:
-                    st.error(f"表格同步失败: {e}")
+                    # B. 写入 Google Sheets (严格顺序)
+                    try:
+                        conn = st.connection("gsheets", type=GSheetsConnection)
+                        df = conn.read(worksheet="Sheet1")
+                        
+                        # 严格按照你的要求顺序：date title region rooms price poster-link description
+                        new_row = {
+                            "date": datetime.now().strftime("%Y-%m-%d"),
+                            "title": in_title,
+                            "region": in_region,
+                            "rooms": in_rooms,
+                            "price": in_price,
+                            "poster-link": p_url,
+                            "description": final_desc
+                        }
+                        
+                        new_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                        conn.update(worksheet="Sheet1", data=new_df)
+                        
+                        st.success("✅ 发布成功！房源已进入客户库。")
+                        st.image(p_url, caption="生成的海报预览")
+                    except Exception as e:
+                        st.error(f"表格同步失败: {e}")
