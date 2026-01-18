@@ -27,7 +27,7 @@ st.markdown("""
         align-items: center; /* 垂直居中 */
         justify-content: flex-start; /* 左对齐 */
         padding: 5px 30px;
-        height: 70px; /* 整个横幅只有 70 像素高 */
+        height: 1000px; /* 整个横幅只有 70 像素高 */
         border-bottom: 1px solid #f0f0f0;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         margin-bottom: 15px;
@@ -40,7 +40,7 @@ st.markdown("""
     }
 
     .logo-img {
-        max-height: 95px; /* 限制 Logo 高度，宽度会自动缩放 */
+        max-height: 100px; /* 限制 Logo 高度，宽度会自动缩放 */
         width: auto;
         margin-right: 25px;
     }
