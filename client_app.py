@@ -14,13 +14,34 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 顶部 Banner 区域 ---
-# 将 banner.jpg 改为 banner.png
-try:
-    st.image("banner.png", use_container_width=True)
-except:
-    # 如果图片加载失败（比如还没上传），则显示默认标题
-    st.title("🏡 Hao Harbour | 伦敦房源精选")
+# --- 顶部 Banner 替代方案：CSS 高级条 ---
+st.markdown("""
+    <style>
+    .custom-banner {
+        background: linear-gradient(90deg, #1e3a5f 0%, #12223a 100%); /* 深蓝色渐变 */
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .banner-title {
+        color: #d4af37; /* 金色文字 */
+        font-family: 'serif';
+        font-size: 32px;
+        font-weight: bold;
+        margin: 0;
+    }
+    .banner-subtitle {
+        color: white;
+        font-size: 14px;
+        letter-spacing: 2px;
+    }
+    </style>
+    <div class="custom-banner">
+        <p class="banner-title">HAO HARBOUR</p>
+        <p class="banner-subtitle">EXCLUSIVE LONDON LIVING</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- 3. 连接数据库 ---
 try:
