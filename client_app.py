@@ -176,16 +176,33 @@ try:
     # 1. 获取数据
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
-    
-    # 2. 导航标签页 (这行相对于 try 缩进 4 个空格)
-    tabs = st.tabs(["🏠 精选房源 (Properties)", "🛠️ 我们的服务 (Services)", "👤 关于我们 (About Us)", "📞 联系方式 (Contact)"])
 
     # --- TAB 1: 房源展示 ---
     with tabs[0]:
-        # 这一行相对于 with 缩进 4 个空格 (总共 8 个)
+        # 统一风格的提示框
         st.markdown('<div class="custom-warning">💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK</div>', unsafe_allow_html=True)
         
-        # 筛选器部分
+        # 强制修复筛选器文字可见性
+        st.markdown("""
+            <style>
+                /* 强制筛选器标题为白色 */
+                .st-expanderHeader p, .st-expanderHeader span {
+                    color: white !important;
+                    font-weight: bold !important;
+                }
+                /* 修复温馨提示框样式 */
+                .custom-warning {
+                    background-color: rgba(191, 160, 100, 0.1);
+                    color: #bfa064;
+                    padding: 15px;
+                    border: 1px solid rgba(191, 160, 100, 0.3);
+                    border-radius: 10px;
+                    margin-bottom: 20px;
+                    text-align: center;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
         with st.expander("🔍 筛选房源 (Filter Options)"):
             f1, f2 = st.columns(2)
             sel_reg = f1.multiselect("Region", options=df['region'].unique().tolist())
@@ -199,14 +216,28 @@ try:
         f_df = f_df[f_df['price'].fillna(0) <= max_p]
         f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
-        # 房源循环展示
+        # 房源循环展示 (确保这部分紧跟在 tabs[0] 之后)
         cols = st.columns(3)
         for i, (idx, row) in enumerate(f_df.iterrows()):
             with cols[i % 3]:
                 st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
                 if row.get('is_featured') == 1:
                     st.markdown('<div class="featured-badge">🌟 精选房源</div>', unsafe_allow_html=True)
-    # --- TAB 2: 我们的服务 (Our Services) ---
+                
+                with st.container(border=True):
+                    st.image(row['poster-link'], use_container_width=True)
+                    st.markdown(f"""
+                        <div class="property-info-container">
+                            <div class="prop-title">{row['title']}</div>
+                            <div class="prop-price">£{int(row['price'])}</div>
+                            <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("View Details", key=f"v_{idx}", use_container_width=True):
+                        show_details(row)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- TAB 2, 3, 4 的逻辑保持在后面即可 ---
    # --- TAB 2: 我们的服务 ---
     with tabs[1]:
         st.markdown("<h2 style='text-align:center; color:#1a1c23;'>Bespoke Concierge Services</h2>", unsafe_allow_html=True)
