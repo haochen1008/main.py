@@ -130,6 +130,9 @@ try:
             st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
             
             # 判断是否为精选房源，是则显示标签
+            # 请检查是否包含这行，如果没有，请加上：
+f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
+
             if row.get('is_featured') == 1 or str(row.get('is_featured')).lower() == 'true':
                 st.markdown("""
                     <div style="
