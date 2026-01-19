@@ -8,187 +8,93 @@ from datetime import datetime
 import json
 import base64
 
-# --- 1. 配置 ---
-# 从 Secrets 获取 API Key
+# --- 1. 配置管理 ---
+st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
+
 try:
     IMGBB_API_KEY = st.secrets["IMGBB_API_KEY"]
 except:
-    st.error("请在 Streamlit Secrets 中配置 IMGBB_API_KEY")
+    st.error("⚠️ 请在 Secrets 中配置 IMGBB_API_KEY")
     st.stop()
 
-# --- 2. 核心函数：加水印并上传 ---
+# --- 2. 核心功能函数 (水印与上传) ---
+
 def process_and_upload(image_input):
+    """自动给上传的图片加水印并传到 ImgBB"""
     try:
-        # 加载图片
         img = Image.open(image_input).convert("RGBA")
-        
-        # 创建水印层
         txt_layer = Image.new("RGBA", img.size, (255, 255, 255, 0))
         draw = ImageDraw.Draw(txt_layer)
         
         # 字体大小自适应
         f_size = int(img.size[0] / 12)
-        font = ImageFont.load_default() # 云端建议使用默认字体防止路径报错
+        font = ImageFont.load_default() 
         
         text = "Hao Harbour"
         bbox = draw.textbbox((0, 0), text, font=font)
         w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         
-        # 绘制半透明白色水印 (居中)
+        # 居中半透明水印
         draw.text(((img.size[0]-w)/2, (img.size[1]-h)/2), text, fill=(255, 255, 255, 120), font=font)
         
-        # 合并
         final_img = Image.alpha_composite(img, txt_layer).convert("RGB")
         buf = BytesIO()
         final_img.save(buf, format="JPEG", quality=85)
         
-        # 上传到 ImgBB
         url = "https://api.imgbb.com/1/upload"
-        payload = {
-            "key": IMGBB_API_KEY,
-            "image": base64.b64encode(buf.getvalue())
-        }
+        payload = {"key": IMGBB_API_KEY, "image": base64.b64encode(buf.getvalue())}
         res = requests.post(url, data=payload)
         return res.json()['data']['url']
     except Exception as e:
-        st.error(f"处理失败: {e}")
+        st.error(f"❌ 图片处理失败: {e}")
         return None
 
-# --- 3. 界面逻辑 ---
-st.title("🏡 Hao Harbour 后台管理")
+def call_ai_summary(raw_text):
+    """AI 提取摘要逻辑 (可在此接入 GPT/Coze API)"""
+    if not raw_text: return "暂无描述"
+    return raw_text[:300] + "..." if len(raw_text) > 300 else raw_text
 
+# --- 3. 连接数据库 ---
 conn = st.connection("gsheets", type=GSheetsConnection)
+df = conn.read(worksheet="Sheet1", ttl=0)
 
-with st.form("listing_form"):
-    title = st.text_input("房源标题")
-    region = st.selectbox("区域", ["London Bridge", "Bermondsey", "Canary Wharf", "Other"])
-    price = st.number_input("月租 (£/pcm)", value=3000)
-    rooms = st.text_input("房型")
-    
-    # 改为上传文件，这样水印效果最好
-    uploaded_file = st.file_uploader("上传房源封面图", type=["jpg", "jpeg", "png"])
-    raw_desc = st.text_area("粘贴原始描述 (AI 提取)")
-    
-    if st.form_submit_button("✨ 智能提取并发布"):
-        if not uploaded_file or not title:
-            st.warning("请填写标题并上传图片")
-        else:
-            with st.spinner("正在加水印并同步至云端..."):
-                # 1. 自动处理水印并上传
-                final_url = process_and_upload(uploaded_file)
-                
-                if final_url:
-                    # 2. 写入 Sheets (这里简化了 AI 提取，直接存入)
-                    new_data = pd.DataFrame([{
-                        "title": title,
-                        "region": region,
-                        "rooms": rooms,
-                        "price": price,
-                        "date": datetime.now().strftime("%Y-%m-%d"),
-                        "description": raw_desc, # 如果你有 AI 函数，可以在这里调用
-                        "poster-link": final_url
-                    }])
-                    
-                    df = conn.read(worksheet="Sheet1")
-                    updated_df = pd.concat([new_data, df], ignore_index=True)
-                    conn.update(worksheet="Sheet1", data=updated_df)
-                    st.success("发布成功！")
-                    st.image(final_url, caption="带水印预览")
-# --- 4. 主界面布局 ---
-st.title("🏡 Hao Harbour 房源发布与管理")
+# --- 4. 侧边栏导航 ---
+st.sidebar.title("🛠️ 后台管理面板")
+menu = st.sidebar.radio("功能切换", ["📝 录入新房源", "📋 管理/删除房源"])
 
-# 初始化 Session State 用于预览
-if "ai_desc" not in st.session_state: st.session_state.ai_desc = ""
-
-tab1, tab2 = st.tabs(["🆕 发布新房源", "🗂️ 房源管理 (删除)"])
-
-# --- TAB 1: 发布房源 ---
-with tab1:
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.subheader("1. 填写基本信息")
-        title = st.text_input("房源名称 (如: Merino Gardens)")
-        region = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"])
-        rooms = st.selectbox("房型", ["1房", "2房", "3房", "4房+"])
-        price = st.number_input("月租 (£/pcm)", value=3000, step=100)
+# --- 5. 页面逻辑 A：录入新房源 ---
+if menu == "📝 录入新房源":
+    st.title("🏡 发布新房源")
+    with st.form("add_form", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            title = st.text_input("房源标题")
+            region = st.selectbox("区域", ["London Bridge", "Bermondsey", "Canary Wharf", "Southwark", "Other"])
+        with col2:
+            price = st.number_input("月租 (£/pcm)", value=3000, step=100)
+            rooms = st.text_input("房型", placeholder="2 Beds, 1 Bath")
         
-        raw_desc = st.text_area("粘贴英文原始描述 (用于 AI 提取)", height=200)
-        if st.button("✨ 执行 AI 智能提取"):
-            if raw_desc:
-                with st.spinner("DeepSeek 正在分析中..."):
-                    st.session_state.ai_desc = call_ai_summary(raw_desc)
+        uploaded_file = st.file_uploader("上传封面图 (将自动添加水印)", type=["jpg", "png", "jpeg"])
+        raw_desc = st.text_area("房源描述内容 (AI 提取)")
+        
+        submit = st.form_submit_button("🚀 智能处理并发布")
+
+        if submit:
+            if not uploaded_file or not title:
+                st.warning("⚠️ 标题和图片是必填项")
             else:
-                st.warning("请先粘贴英文描述")
+                with st.spinner("⏳ 正在加水印、上传并同步数据..."):
+                    final_url = process_and_upload(uploaded_file)
+                    if final_url:
+                        processed_desc = call_ai_summary(raw_desc)
+                        new_row = pd.DataFrame([{
+                            "title": title, "region": region, "rooms": rooms, 
+                            "price": price, "date": datetime.now().strftime("%Y-%m-%d"),
+                            "description": processed_desc, "poster-link": final_url
+                        }])
+                        updated_df = pd.concat([new_row, df], ignore_index=True)
+                        conn.update(worksheet="Sheet1", data=updated_df)
+                        st.success("🎉 发布成功！")
+                        st.image(final_url, caption="带水印预览", width=300)
 
-    with col2:
-        st.subheader("2. 预览与发布")
-        # AI 提取后的结果，允许手动微调
-        final_desc = st.text_area("最终 Description (可微调)", value=st.session_state.ai_desc, height=250)
-        
-        photos = st.file_uploader("上传照片 (前6张将生成海报)", accept_multiple_files=True)
-        
-        if st.button("🚀 确认发布 (生成海报并同步)", type="primary"):
-            if not title or not photos or not final_desc:
-                st.error("请确保标题、描述和图片已准备就绪")
-            else:
-                with st.spinner("正在生成海报并上传云端..."):
-                    # 生成海报
-                    poster_img = create_poster(photos, title)
-                    if poster_img:
-                        # 转为字节流上传
-                        buf = io.BytesIO()
-                        poster_img.save(buf, format='JPEG')
-                        upload_res = cloudinary.uploader.upload(buf.getvalue())
-                        p_url = upload_res.get("secure_url")
-                        
-                        # 同步 Google Sheets (追加模式)
-                        try:
-                            conn = st.connection("gsheets", type=GSheetsConnection)
-                            df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-                            
-                            new_data = {
-                                "date": datetime.now().strftime("%Y-%m-%d"),
-                                "title": title,
-                                "region": region,
-                                "rooms": rooms,
-                                "price": price,
-                                "poster-link": p_url,
-                                "description": final_desc
-                            }
-                            updated_df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
-                            conn.update(worksheet="Sheet1", data=updated_df)
-                            
-                            st.success(f"✅ 《{title}》 已成功追加至数据库！")
-                            st.image(p_url, caption="生成的海报已同步至客户端", width=400)
-                        except Exception as e:
-                            st.error(f"数据库同步失败: {e}")
-
-# --- TAB 2: 房源管理 (删除) ---
-with tab2:
-    st.subheader("📋 现有房源在线列表")
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        manage_df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-        
-        if manage_df.empty:
-            st.info("暂无在线房源")
-        else:
-            # 删除功能
-            to_delete = st.multiselect("选择要下架(删除)的房源标题", options=manage_df['title'].tolist())
-            
-            if st.button("🗑️ 确认下架选中房源"):
-                if to_delete:
-                    # 过滤掉要删除的行
-                    new_df = manage_df[~manage_df['title'].isin(to_delete)]
-                    conn.update(worksheet="Sheet1", data=new_df)
-                    st.success(f"已下架: {len(to_delete)} 套房源")
-                    st.rerun()
-                else:
-                    st.warning("请先选择房源")
-            
-            # 展示数据
-            st.dataframe(manage_df[['date', 'title', 'region', 'rooms', 'price']], use_container_width=True)
-            
-    except Exception as e:
-        st.error(f"列表加载失败: {e}")
+# --- 6. 页面逻辑 B：管理/
