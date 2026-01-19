@@ -3,9 +3,10 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import requests
 import urllib.parse
+import base64
 
 # --- 1. 彻底隐藏右上角图标与装饰 ---
-st.set_page_config(page_title="Hao Harbour | Exclusive London Living", layout="wide")
+st.set_page_config(page_title="Hao Harbour | London Excellence", layout="wide")
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -13,7 +14,7 @@ st.markdown("""
     footer {visibility: hidden;}
     .stAppDeployButton {display:none;}
     [data-testid="stToolbar"] {display: none !important;}
-    /* 隐藏筛选器展开后的默认白边 */
+    /* 隐藏筛选器卡片的边框 */
     .st-expander {border: none !important; box-shadow: none !important;}
     </style>
 """, unsafe_allow_html=True)
@@ -27,13 +28,12 @@ def show_details(item):
     st.markdown(item.get('description', '暂无详细说明'))
     st.divider()
 
-    # 咨询工具栏
     c1, c2, c3 = st.columns(3)
     with c1:
         st.code("HaoHarbour_UK", language=None)
         st.caption("微信 ID (点击复制)")
     with c2:
-        phone = "447000000000" # 记得改成你的号码
+        phone = "447000000000" 
         wa_url = f"https://wa.me/{phone}?text=" + urllib.parse.quote(f"Hi, I'm interested in {item['title']}")
         st.link_button("💬 WhatsApp", wa_url, use_container_width=True)
     with c3:
@@ -49,72 +49,77 @@ def show_details(item):
             st.download_button("📥 下载海报", data=img_data, file_name=f"{item['title']}.jpg", use_container_width=True)
         except: pass
 
-    # 后台浏览量加 1
+    # 静默更新浏览量
     try:
         conn_u = st.connection("gsheets", type=GSheetsConnection)
         df_u = conn_u.read(worksheet="Sheet1", ttl=0)
         if 'views' in df_u.columns:
-            df_u.loc[df_u['title'] == item['title'], 'views'] += 1
-            conn_u.update(worksheet="Sheet1", data=df_u)
+            idx = df_u.index[df_u['title'] == item['title']].tolist()
+            if idx:
+                df_u.at[idx[0], 'views'] = int(df_u.at[idx[0], 'views']) + 1
+                conn_u.update(worksheet="Sheet1", data=df_u)
     except: pass
 
-# --- 3. 顶部 Logo 与 品牌展示 ---
-# 建议：如果 Logo 还在报错，请确保 logo.png 文件放在 admin_app.py 同级目录下
+# --- 3. 顶部 Logo (兼容性最好的写法) ---
+def get_image_base64(path):
+    with open(path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
 try:
-    col_logo_1, col_logo_2, col_logo_3 = st.columns([2, 1, 2])
-    with col_logo_2:
-        # 这里尝试加载本地 logo.png，如果不存在则显示文字
-        st.image("logo.png", width=150) 
+    # 尝试读取同级目录下的 logo.png
+    encoded_logo = get_image_base64("logo.png")
+    st.markdown(f"""
+        <div style="text-align: center;">
+            <img src="data:image/png;base64,{encoded_logo}" width="120">
+        </div>
+    """, unsafe_allow_html=True)
 except:
-    st.markdown("<h1 style='text-align: center; color: #bfa064;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
+    # 如果找不到文件，显示备用高清文字 Logo
+    st.markdown("<h1 style='text-align: center; color: #bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
 
-st.markdown("""
-    <div style="text-align: center; margin-top: -20px; margin-bottom: 20px;">
-        <p style="color: #bfa064; font-weight: bold; letter-spacing: 3px; font-size: 14px;">EXCLUSIVE LONDON LIVING</p>
-    </div>
-""", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #bfa064; font-weight: bold; letter-spacing: 3px; font-size: 14px; margin-top:0;'>EXCLUSIVE LONDON LIVING</p>", unsafe_allow_html=True)
 
-# --- 4. 数据加载与下拉折叠筛选器 ---
+# --- 4. 数据加载与折叠下拉筛选器 ---
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
 
-    # 改为 st.expander (下拉式筛选)，默认 expanded=False 即不打开
+    # 下拉筛选容器
     with st.expander("🔍 筛选房源 (Filter Properties)", expanded=False):
         f1, f2, f3 = st.columns(3)
         with f1:
-            all_regions = df['region'].unique().tolist()
-            sel_region = st.multiselect("区域 (Region)", options=all_regions, default=all_regions)
+            # 这里的下拉框客户点击才会看到选项
+            sel_region = st.multiselect("区域 (Region)", options=df['region'].unique().tolist(), placeholder="请选择区域")
         with f2:
-            all_rooms = df['rooms'].unique().tolist()
-            sel_rooms = st.multiselect("房型 (Room Type)", options=all_rooms, default=all_rooms)
+            sel_rooms = st.multiselect("房型 (Room Type)", options=df['rooms'].unique().tolist(), placeholder="请选择房型")
         with f3:
             max_p = int(df['price'].max()) if not df.empty else 15000
             sel_price = st.slider("最高月租 (£)", 1000, max_p, max_p)
 
-    # 过滤逻辑
-    filtered_df = df[
-        (df['region'].isin(sel_region)) & 
-        (df['rooms'].isin(sel_rooms)) & 
-        (df['price'] <= sel_price)
-    ]
+    # 逻辑过滤
+    filtered_df = df.copy()
+    if sel_region:
+        filtered_df = filtered_df[filtered_df['region'].isin(sel_region)]
+    if sel_rooms:
+        filtered_df = filtered_df[filtered_df['rooms'].isin(sel_rooms)]
+    filtered_df = filtered_df[filtered_df['price'] <= sel_price]
 
-    # 排序：精选优先
+    # 精选置顶
     if 'is_featured' in filtered_df.columns:
         filtered_df = filtered_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
     else:
         filtered_df = filtered_df.sort_values(by='date', ascending=False)
 
-    # --- 5. 房源矩阵展示 ---
+    # --- 5. 展示矩阵 ---
     if filtered_df.empty:
-        st.info("没有找到符合条件的房源，请调整筛选条件。")
+        st.info("没有找到符合条件的房源。")
     else:
-        cols = st.columns(3)
+        grid_cols = st.columns(3)
         for i, (idx, row) in enumerate(filtered_df.iterrows()):
-            with cols[i % 3]:
+            with grid_cols[i % 3]:
                 with st.container(border=True):
                     if row.get('is_featured', False):
-                        st.markdown('<p style="background:#ff4b4b; color:white; padding:2px 8px; border-radius:3px; font-size:11px; width:fit-content; margin-bottom:5px;">🌟 FEATURED</p>', unsafe_allow_html=True)
+                        st.markdown('<div style="background:#ff4b4b; color:white; padding:2px 8px; border-radius:3px; font-size:11px; width:fit-content; margin-bottom:5px;">🌟 FEATURED</div>', unsafe_allow_html=True)
                     
                     st.image(row['poster-link'], use_container_width=True)
                     st.markdown(f"**{row['title']}**")
@@ -123,4 +128,4 @@ try:
                     if st.button("View Details", key=f"btn_{idx}", use_container_width=True):
                         show_details(row)
 except Exception as e:
-    st.error(f"加载异常，请稍后刷新。")
+    st.error("房源加载中...")
