@@ -10,64 +10,76 @@ st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
 st.markdown("""
     <style>
-    /* 导航标签美化 */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 20px;
-    justify-content: center;
-}
-.stTabs [data-baseweb="tab"] {
-    height: 50px;
-    background-color: transparent !important;
-    border: none !important;
-    color: #888 !important;
-    font-weight: 600;
-}
-.stTabs [aria-selected="true"] {
-    color: #bfa064 !important;
-    border-bottom: 2px solid #bfa064 !important;
-}
-    /* 解决卡片内部太挤的问题 */
-    .property-info-container {
-        padding: 20px 10px !important; /* 增加上下内边距 */
-        text-align: center;
+<style>
+    /* 全局背景与字体 */
+    .stApp { background-color: #fcfcfc; }
+    
+    /* 导航栏美化 - 黄金分割感 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 40px;
+        justify-content: center;
+        border-bottom: 1px solid #e0e0e0;
     }
-    .prop-title { font-weight: bold; font-size: 18px; margin-bottom: 8px; }
-    .prop-price { color: #bfa064; font-size: 20px; font-weight: bold; margin-bottom: 12px; }
-    .prop-tags { color: #888; font-size: 13px; margin-bottom: 8px; }
-    .prop-date { color: #bbb; font-size: 12px; margin-top: 10px; border-top: 1px solid #eee; padding-top: 8px; }
-
-    /* 修复筛选栏 */
-    .st-expanderHeader > div:first-child { display: none !important; }
-    .st-expanderHeader {
-        background-color: #1a1c23 !important;
-        border: 1px solid #bfa064 !important;
-        border-radius: 12px !important;
+    .stTabs [data-baseweb="tab"] {
+        height: 60px;
+        font-size: 16px;
+        color: #666 !important;
+        background-color: transparent !important;
     }
-
-    /* WhatsApp 绿色按钮 */
-    .wa-link {
-        background-color: #25D366 !important;
-        color: white !important;
-        text-align: center;
-        padding: 12px;
-        border-radius: 10px;
+    .stTabs [aria-selected="true"] {
+        color: #bfa064 !important;
+        border-bottom: 3px solid #bfa064 !important;
         font-weight: bold;
-        text-decoration: none;
-        display: block;
-        margin: 10px 0;
     }
 
-    /* 微信 ID 容器 */
-    .wechat-header {
-        background-color: #f8f9fa;
-        padding: 10px;
-        border-radius: 10px 10px 0 0;
-        text-align: center;
-        border: 1px solid #eee;
-        border-bottom: none;
+    /* 高级感服务卡片 */
+    .service-card {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        border-left: 5px solid #bfa064;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        transition: transform 0.3s ease;
+    }
+    .service-card:hover { transform: translateY(-5px); }
+    .service-title { color: #1a1c23; font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+    .service-text { color: #555; font-size: 14px; line-height: 1.6; }
+
+    /* 关于我们 - 履历墙样式 */
+    .bio-box {
+        background: linear-gradient(135deg, #1a1c23 0%, #343a40 100%);
+        color: #f1f1f1;
+        padding: 30px;
+        border-radius: 20px;
+        border: 1px solid #bfa064;
+    }
+    .bio-tag {
+        display: inline-block;
+        background: rgba(191, 160, 100, 0.2);
+        color: #bfa064;
+        padding: 3px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        margin-bottom: 10px;
+        border: 1px solid #bfa064;
     }
 
-    #MainMenu, footer, .stAppDeployButton, [data-testid="stToolbar"] {visibility: hidden; display: none !important;}
+    /* 精选标签样式 */
+    .featured-badge {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: linear-gradient(45deg, #ff4b4b, #ff7675);
+        color: white;
+        padding: 5px 15px;
+        border-radius: 30px;
+        font-size: 11px;
+        font-weight: bold;
+        z-index: 10;
+        box-shadow: 0 4px 10px rgba(255, 75, 75, 0.3);
+    }
+</style>
     </style>
 """, unsafe_allow_html=True)
 
