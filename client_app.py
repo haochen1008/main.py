@@ -125,9 +125,6 @@ try:
     # 1. 获取数据
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
-    
-    # 2. 导航标签页
-    tabs = st.tabs(["🏠 精选房源", "🛠️ 我们的服务", "👤 关于我们", "📞 联系方式"])
 
     # --- TAB 1: 房源展示 ---
     with tabs[0]:
