@@ -101,7 +101,13 @@ def show_details(item):
 st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:#bfa064; font-size:12px; margin-top:0; letter-spacing:3px;'>EXCLUSIVE LONDON LIVING</p>", unsafe_allow_html=True)
 
-st.warning("💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK")
+# --- 导航栏设计 ---
+tabs = st.tabs(["🏠 精选房源 (Properties)", "🛠️ 我们的服务 (Services)", "👤 关于我们 (About Us)", "📞 联系方式 (Contact)"])
+
+with tabs[0]:
+    # 把你原来的“筛选器 (Filter)”和“房源循环展示 (for loop)”代码全部放在这个 with 块下面
+    st.warning("💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK")
+    # ... (这里放你原本的 Filter 和房源展示代码)
 
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
