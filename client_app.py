@@ -167,25 +167,7 @@ if show_fav_only:
     filtered_df = filtered_df[filtered_df['title'].isin(st.session_state.favorites)]
 
 # --- 7. 房源展示 ---
-# --- 在 show_details 函数内部开头加入逻辑 ---
-@st.dialog("房源详情")
-def show_details(item):
-    # 增加浏览量逻辑
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        # 读取最新数据
-        full_df = conn.read(worksheet="Sheet1", ttl=0)
-        
-        # 找到当前房源所在的行，并在 views 列加 1
-        # 注意：这里假设 title 是唯一的
-        if 'views' in full_df.columns:
-            full_df.loc[full_df['title'] == item['title'], 'views'] += 1
-            conn.update(worksheet="Sheet1", data=full_df)
-    except Exception as e:
-        print(f"Views update failed: {e}")
-
-    # ... 剩下的展示代码保持不变 ...
-    st.image(item['poster-link'], use_container_width=True)
+    
 st.markdown(f"#### 📍 发现 {len(filtered_df)} 套精品房源")
 if not filtered_df.empty:
     m_cols = st.columns(3)
