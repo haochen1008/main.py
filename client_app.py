@@ -22,7 +22,7 @@ st.markdown("""
         color: #ffffff !important; /* 纯白文字，绝对看得见 */
         font-weight: bold !important;
     }
-    
+
     /* 2. 修复温馨提示框：去掉突兀的鲜黄色，改为深色半透明 */
     div[data-testid="stNotification"] {
         background-color: rgba(255, 255, 255, 0.05) !important;
@@ -137,6 +137,23 @@ st.markdown("""
         z-index: 10;
         box-shadow: 0 4px 10px rgba(255, 75, 75, 0.3);
     }
+    /* 1. 隐藏手机端右下角的管理悬浮球 (Manage App button) */
+#viewerBadge, .viewerBadge_container__17768, [data-testid="stManageAppButton"] {
+    display: none !important;
+}
+
+/* 2. 隐藏底部所有可能存在的 Streamlit 标签 */
+footer {visibility: hidden !important;}
+[data-testid="stFooter"] {display: none !important;}
+
+/* 3. 彻底清除顶部 header（包含 GitHub 和菜单） */
+[data-testid="stHeader"] {display: none !important;}
+header {visibility: hidden !important;}
+
+/* 4. 移除右下角的额外操作按钮（针对移动端优化） */
+.stApp [data-testid="stToolbar"] {
+    display: none !important;
+}
     
     /* 彻底隐藏右上角的 GitHub 图标、Deploy 按钮和三道杠菜单 */
 #MainMenu {visibility: hidden;}
