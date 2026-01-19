@@ -54,33 +54,61 @@ def toggle_fav(title):
     else:
         st.session_state.favorites.append(title)
 
-# --- 4. 详情弹窗 (新增电话直达与分享) ---
+# --- 4. 详情弹窗 (修复崩溃问题，优化分享与联系) ---
 @st.dialog("房源详情")
 def show_details(item):
     st.image(item['poster-link'], use_container_width=True)
     
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        st.markdown(f"📅 **起租日期/发布**: {item['date']}")
-    with c2:
-        # 简单的分享文本
-        share_text = f"推荐一套伦敦房源：{item['title']}，租金 £{item['price']}/pcm。详情请查看官网。"
-        st.button("📋 复制分享语", on_click=lambda: st.toast("分享语已准备好，长按复制！"))
-
+    # 基本信息
+    st.markdown(f"📅 **起租日期/发布**: {item['date']}")
     st.markdown("### 📋 房源亮点")
     st.write(item['description'])
     st.divider()
     
-    st.markdown("💬 **联系我们获取详细资料**")
+    # --- 核心联系通道 ---
+    st.markdown("💬 **立即咨询 Hao Harbour**")
+    
+    # 设置你的联系方式
+    # 请务必在此处修改为你的真实号码（纯数字，如 447123456789）
+    phone_number = "447000000000" 
+    encoded_msg = f"您好，我想咨询房源：{item['title']} (租金 £{item['price']})。请问还可以预约看房吗？"
+    whatsapp_url = f"https://wa.me/{phone_number}?text={encoded_msg}"
+
+    # 并排按钮：WhatsApp 与 拨号
     col_a, col_b = st.columns(2)
     with col_a:
-        # 这里修改为你真实的电话，手机点击可直接拨打
-        st.markdown('<a href="tel:+447450912493" style="text-decoration:none;"><button style="width:100%; height:40px; border-radius:8px; border:1px solid #ddd; background:white;">📞 拨打电话</button></a>', unsafe_allow_html=True)
+        st.markdown(f'''
+            <a href="{whatsapp_url}" target="_blank" style="text-decoration:none;">
+                <button style="width:100%; height:45px; border-radius:10px; border:none; background:#25D366; color:white; font-weight:bold; cursor:pointer;">
+                    WhatsApp 咨询
+                </button>
+            </a>
+        ''', unsafe_allow_html=True)
     with col_b:
+        st.markdown(f'''
+            <a href="tel:+{phone_number}" style="text-decoration:none;">
+                <button style="width:100%; height:45px; border-radius:10px; border:1px solid #25D366; background:white; color:#25D366; font-weight:bold; cursor:pointer;">
+                    📞 拨打电话
+                </button>
+            </a>
+        ''', unsafe_allow_html=True)
+    
+    st.write("") 
+    
+    # 微信与分享区
+    with st.expander("更多联系方式 & 分享"):
+        # 微信部分
         if os.path.exists("wechat_qr.png"):
-            st.image("wechat_qr.png", caption="扫码加微信", width=150)
+            st.image("wechat_qr.png", caption="扫码加微信: HaoHarbour_UK", width=180)
         else:
-            st.info("微信客服: HaoHarbour_UK")
+            st.write("微信客服: **HaoHarbour_UK**")
+        
+        st.divider()
+        
+        # 修复后的分享功能：使用 code 块让用户点击即可复制
+        st.write("📢 **房源分享语 (长按下方代码框复制):**")
+        share_msg = f"Hao Harbour 房源推荐：{item['title']}，租金 £{item['price']}/pcm。详情请咨询微信：HaoHarbour_UK"
+        st.code(share_msg, language=None)
 
 # --- 5. 渲染 Header ---
 logo_file = "logo.png" if os.path.exists("logo.png") else "logo.jpg"
