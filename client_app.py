@@ -4,34 +4,6 @@ import pandas as pd
 import urllib.parse
 import base64
 
-st.markdown("""
-    <style>
-        /* 1. 强力隐藏右下角和顶部 */
-        header, footer, .stAppDeployButton, [data-testid="stHeader"], [data-testid="stFooter"], #MainMenu, [data-testid="stManageAppButton"], #viewerBadge {
-            display: none !important;
-            visibility: hidden !important;
-        }
-
-        /* 2. 修复筛选器：白底黑字，确保绝对看得见 */
-        .st-expander {
-            background-color: white !important;
-            border: 1px solid #bfa064 !important;
-            border-radius: 10px !important;
-        }
-        .st-expanderHeader p {
-            color: #1a1c23 !important;
-            font-weight: bold !important;
-        }
-
-        /* 3. 居中排版样式 */
-        .prop-center { text-align: center; padding: 10px 0; }
-        .prop-title { font-weight: bold; color: #1a1c23; font-size: 1.1em; margin-bottom: 5px; }
-        .prop-price { color: #bfa064; font-size: 1.2em; font-weight: bold; margin-bottom: 5px; }
-        .prop-tags { color: #666; font-size: 0.9em; margin-bottom: 5px; }
-        .prop-date { color: #999; font-size: 0.8em; }
-    </style>
-""", unsafe_allow_html=True)
-
 # --- 1. 页面配置与 CSS 深度优化 ---
 st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
@@ -391,51 +363,30 @@ try:
         f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
         # 渲染房源列表
-        cols = st.columns(3)
-        for i, (idx, row) in enumerate(f_df.iterrows()):
-            with cols[i % 3]:
-                # 房源卡片容器
-                with st.container(border=True):
-                    # 精选房源标签
-                    if row.get('is_featured') == 1:
-                        st.markdown('<span style="background:#ff4b4b; color:white; padding:2px 8px; border-radius:4px; font-size:12px;">🌟 精选房源</span>', unsafe_allow_html=True)
-                    
-                    st.image(row['poster-link'], use_container_width=True)
-                    st.markdown(f"""
-                        <div style="padding:10px 0;">
-                            <div class="prop-title">{row['title']}</div>
-                            <div class="prop-price">£{int(row['price'])} /pcm</div>
-                            <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if st.button("查看详情 (Details)", key=f"btn_{idx}", use_container_width=True):
-                        show_details(row)
-                        # 房源循环展示
-        cols = st.columns(3)
+       cols = st.columns(3)
         for i, (idx, row) in enumerate(f_df.iterrows()):
             with cols[i % 3]:
                 with st.container(border=True):
-                    # 1. 顶部：精选标签
+                    # 精选标签
                     if row.get('is_featured') == 1:
                         st.markdown('<div style="text-align:right;"><span style="background:#ff4b4b; color:white; padding:2px 8px; border-radius:4px; font-size:10px;">🌟 精选房源</span></div>', unsafe_allow_html=True)
                     
-                    # 2. 中间：房源图片
+                    # 房源图片
                     st.image(row['poster-link'], use_container_width=True)
                     
-                    # 3. 底部：文字信息（全部居中对齐）
+                    # 核心内容：找回日期并全部居中
                     st.markdown(f"""
-                        <div style="text-align: center; padding: 10px 0;">
-                            <div style="font-weight: bold; color: #1a1c23; font-size: 1.1em; margin-bottom: 5px;">{row['title']}</div>
-                            <div style="color: #bfa064; font-size: 1.2em; font-weight: bold; margin-bottom: 5px;">£{int(row['price'])} /pcm</div>
-                            <div style="color: #666; font-size: 0.9em; margin-bottom: 5px;">📍 {row['region']} | {row['rooms']}</div>
-                            <div style="color: #999; font-size: 0.8em;">📅 发布日期: {row['date']}</div>
+                        <div class="prop-center">
+                            <div class="prop-title">{row['title']}</div>
+                            <div class="prop-price">£{int(row['price'])} /pcm</div>
+                            <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
+                            <div class="prop-date">📅 发布日期: {row['date']}</div>
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    # 4. 详情按钮
                     if st.button("查看详情 (Details)", key=f"btn_{idx}", use_container_width=True):
                         show_details(row)
+                       
 
     # --- TAB 2, 3, 4 的逻辑保持在后面即可 ---
    # --- TAB 2: 我们的服务 ---
