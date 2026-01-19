@@ -11,14 +11,19 @@ st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 st.markdown("""
     <style>
     /* 1. 修复筛选房源标题颜色：强制改为白色 */
+/* 1. 这里的背景色换成最稳妥的深灰色 */
     .st-expander {
-    background-color: #16211a !important; /* 换成深黑色背景 */
-    border: 2px solid #bfa064 !important; /* 金色边框 */
-}
+        background-color: #262730 !important; /* 换成这个代码 */
+        border: 1px solid #bfa064 !important; /* 保持金色边框 */
+        border-radius: 8px !important;
+    }
+
+    /* 2. 这里的文字颜色强制改为香槟金，确保在深色底上清晰可见 */
     .st-expanderHeader p {
-        color: #bfa064 !important;
-        font-weight: 600 !important;
-        font-size: 16px !important;
+        color: #bfa064 !important; /* 换成金色 */
+        font-weight: 700 !important;
+        font-size: 18px !important;
+    }
     }
     
     /* 2. 修复温馨提示框：去掉突兀的鲜黄色，改为深色半透明 */
