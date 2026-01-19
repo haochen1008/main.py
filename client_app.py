@@ -16,7 +16,7 @@ st.markdown("""
     border: 2px solid #bfa064 !important; /* 金色边框 */
 }
     .st-expanderHeader p {
-        color: #ffffff !important;
+        color: #bfa064 !important;
         font-weight: 600 !important;
         font-size: 16px !important;
     }
