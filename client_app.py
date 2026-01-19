@@ -120,20 +120,19 @@ try:
     f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
     # 展示房源卡片
+ # 1. 确保这一行在 try 模块内，且左边有 4 个空格
     cols = st.columns(3)
-    for i, (idx, row) in enumerate(f_df.iterrows()):
-        # 找到 for 循环这一行，替换其内部逻辑：
-    cols = st.columns(3)
+    
+    # 2. 整个循环块
     for i, (idx, row) in enumerate(f_df.iterrows()):
         with cols[i % 3]:
-            # --- 核心修改：增加一个相对定位的容器来放标签 ---
+            # 创建一个相对定位容器，用于放置“精选”标签
             st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
             
-            # 判断是否为精选房源，是则显示标签
-            # 请检查是否包含这行，如果没有，请加上：
-f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
-
-            if row.get('is_featured') == 1 or str(row.get('is_featured')).lower() == 'true':
+            # --- 精选标签逻辑 ---
+            # 检查 is_featured 是否为 1 或 True
+            is_feat = row.get('is_featured')
+            if is_feat == 1 or str(is_feat).lower() == 'true':
                 st.markdown("""
                     <div style="
                         position: absolute;
@@ -146,23 +145,33 @@ f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
                         font-size: 11px;
                         font-weight: bold;
                         z-index: 10;
-                        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
                     ">🌟 精选房源</div>
                 """, unsafe_allow_html=True)
 
+            # --- 房源卡片内容 ---
             with st.container(border=True):
+                # 房源大图
                 st.image(row['poster-link'], use_container_width=True)
+                
+                # 房源信息文字区（带间距优化）
                 st.markdown(f"""
-                    <div class="property-info-container">
-                        <div class="prop-title">{row['title']}</div>
-                        <div class="prop-price">£{int(row['price'])}</div>
-                        <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
-                        <div class="prop-date">发布日期: {row['date']}</div>
+                    <div style="padding: 15px 10px 20px 10px; text-align: center;">
+                        <div style="font-weight: bold; font-size: 17px; margin-bottom: 5px;">{row['title']}</div>
+                        <div style="color: #bfa064; font-size: 19px; font-weight: bold; margin-bottom: 8px;">£{int(row['price'])}</div>
+                        <div style="color: #777; font-size: 12px; margin-bottom: 10px;">📍 {row['region']} | {row['rooms']}</div>
+                        <div style="color: #aaa; font-size: 11px; border-top: 1px solid #f0f0f0; padding-top: 10px;">
+                            发布日期: {row['date']}
+                        </div>
                     </div>
                 """, unsafe_allow_html=True)
+                
+                # 查看详情按钮
                 if st.button("View Details", key=f"v_{idx}", use_container_width=True):
                     show_details(row)
             
-            st.markdown('</div>', unsafe_allow_html=True) # 闭合相对定位容器
+            # 闭合容器
+            st.markdown('</div>', unsafe_allow_html=True)
+
 except:
     st.info("Loading properties...")
