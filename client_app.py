@@ -45,7 +45,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 详情弹窗 (地图 + 微信复制 + WhatsApp + 拨号) ---
+# --- 3. 详情弹窗 (地图 + 微信复制 + WhatsApp + 拨号 + 房源描述复制) ---
 @st.dialog("房源详情")
 def show_details(item):
     st.image(item['poster-link'], use_container_width=True)
@@ -72,7 +72,7 @@ def show_details(item):
     
     # 联系配置
     wechat_id = "HaoHarbour_UK"
-    phone_num = "447450912493" 
+    phone_num = "447000000000" 
     
     st.markdown("💬 **立即咨询**")
     
@@ -92,12 +92,32 @@ def show_details(item):
 
     st.divider()
 
-    # 海报下载
+    # --- 分享区域：海报下载 + 描述复制 ---
+    st.markdown("🔗 **分享此房源**")
+    
+    # 1. 下载海报按钮
     try:
         img_data = requests.get(item['poster-link'], timeout=5).content
-        st.download_button(label="🖼️ 下载精美海报", data=img_data, file_name=f"{item['title']}.jpg", mime="image/jpeg", use_container_width=True)
+        st.download_button(
+            label="🖼️ 下载精美海报", 
+            data=img_data, 
+            file_name=f"{item['title']}_HaoHarbour.jpg", 
+            mime="image/jpeg", 
+            use_container_width=True
+        )
     except:
-        st.caption("海报生成中，请稍后重试...")
+        st.caption("海报生成中...")
+
+    # 2. 一键复制描述 (加回来的功能)
+    st.write("📋 **点击下方文字即可全选复制描述:**")
+    share_text = (
+        f"🏠 Hao Harbour 房源推荐：{item['title']}\n"
+        f"💰 租金：£{int(item['price']):,}/pcm\n"
+        f"📍 区域：{item['region']}\n"
+        f"✨ 亮点：{item['description']}\n"
+        f"💬 咨询微信：{wechat_id}"
+    )
+    st.code(share_text, language=None)
 
 # --- 4. 渲染 Header ---
 logo_file = "logo.png" if os.path.exists("logo.png") else "logo.jpg"
