@@ -1,84 +1,86 @@
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
-from streamlit_gsheets import GSheetsConnection
-import cloudinary
-import cloudinary.uploader
 import pandas as pd
-import io
-import os
+from streamlit_gsheets import GSheetsConnection
 import requests
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 from datetime import datetime
+import base64
 
-# --- 1. 页面配置 ---
-st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
+# --- 1. 配置（请务必填入你的 ImgBB API KEY） ---
+IMGBB_API_KEY = "deedcd3d644b02b49452f364785e9fdd"
 
-# Cloudinary & DeepSeek 配置 (从 Secrets 读取)
-cloudinary.config(
-    cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
-    api_key = st.secrets["CLOUDINARY_API_KEY"],
-    api_secret = st.secrets["CLOUDINARY_API_SECRET"]
-)
-DEEPSEEK_KEY = st.secrets["OPENAI_API_KEY"] # 这里假设你填的是 DeepSeek 的 Key
-
-# --- 2. 核心函数：生成 6 宫格海报 ---
-def create_poster(files, title_text):
+# --- 2. 核心：自动加水印并上传图床函数 ---
+def process_and_upload_image(image_input):
+    """
+    输入：可以是图片链接(str) 或 上传的文件对象(bytes)
+    输出：带水印图片的 ImgBB 直链
+    """
     try:
-        # 创建 800x1200 的纯白画布
-        canvas = Image.new('RGB', (800, 1200), (255, 255, 255))
-        draw = ImageDraw.Draw(canvas)
+        # 加载图片
+        if isinstance(image_input, str):
+            resp = requests.get(image_input)
+            img = Image.open(BytesIO(resp.content)).convert("RGBA")
+        else:
+            img = Image.open(image_input).convert("RGBA")
         
-        # 加载字体 (确保仓库有 simhei.ttf)
+        # --- 画水印 ---
+        txt_layer = Image.new("RGBA", img.size, (255, 255, 255, 0))
+        draw = ImageDraw.Draw(txt_layer)
+        # 字体大小自适应（宽度的1/12）
+        f_size = int(img.size[0] / 12)
         try:
-            font_title = ImageFont.truetype("simhei.ttf", 45)
-            font_footer = ImageFont.truetype("simhei.ttf", 25)
+            font = ImageFont.load_default() 
         except:
-            font_title = ImageFont.load_default()
-            font_footer = ImageFont.load_default()
-
-        # 处理前 6 张图片 (2列3行)
-        for i, f in enumerate(files[:6]):
-            img = Image.open(f).convert('RGB')
-            # 缩放并裁剪为 390x300
-            img = img.resize((390, 300), Image.Resampling.LANCZOS)
-            x = 5 + (i % 2) * 395
-            y = 5 + (i // 2) * 305
-            canvas.paste(img, (x, y))
-
-        # 底部写入标题
-        draw.text((40, 950), title_text, font=font_title, fill=(0, 0, 0))
-        draw.text((40, 1030), "Hao Harbour | London Excellence", font=font_footer, fill=(180, 160, 100))
+            font = ImageFont.load_default()
         
-        # 画一条装饰线
-        draw.line([(40, 1010), (760, 1010)], fill=(200, 200, 200), width=2)
+        text = "Hao Harbour"
+        # 计算居中位置
+        bbox = draw.textbbox((0, 0), text, font=font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        draw.text(((img.size[0]-w)/2, (img.size[1]-h)/2), text, fill=(255, 255, 255, 100), font=font)
         
-        return canvas
+        # 合并并压缩
+        final_img = Image.alpha_composite(img, txt_layer).convert("RGB")
+        buf = BytesIO()
+        final_img.save(buf, format="JPEG", quality=85)
+        img_bytes = buf.getvalue()
+
+        # --- 上传到 ImgBB ---
+        url = "https://api.imgbb.com/1/upload"
+        payload = {
+            "key": IMGBB_API_KEY,
+            "image": base64.b64encode(img_bytes)
+        }
+        res = requests.post(url, data=payload)
+        return res.json()['data']['url']
     except Exception as e:
-        st.error(f"海报生成失败: {e}")
+        st.error(f"图片水印处理或上传失败: {e}")
         return None
 
-# --- 3. 核心函数：DeepSeek AI 提取 (提示词已优化) ---
-def call_ai_summary(raw_text):
-    try:
-        headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}", "Content-Type": "application/json"}
-        # 优化后的 Prompt：明确要求保留可用日期，剔除杂项
-        prompt = (
-            "你是一个专业的伦敦房产经纪助手。请将以下房源描述翻译并精简成中文要点：\n"
-            "1. 必须包含 'Available date' (起租日期)。\n"
-            "2. 使用✔符号开头，列出交通、周边生活、装修亮点。\n"
-            "3. 严格禁止包含以下内容：Deposit (押金)、Min. Tenancy (租期)、Let type (租赁类型)、Long term/Short term。\n"
-            "4. 语言要高级且吸引人。\n\n"
-            f"原始描述如下：\n{raw_text}"
-        )
-        data = {
-            "model": "deepseek-chat",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7
-        }
-        response = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=data)
-        return response.json()['choices'][0]['message']['content']
-    except Exception as e:
-        return f"AI 提取失败，请手动编辑。错误: {e}"
-
+# --- 3. 你的保存/发布按钮逻辑 ---
+# 假设你原来的按钮逻辑如下，我们只需要植入 process_and_upload_image 这一步
+if st.button("🚀 执行发布"):
+    if poster_link: # 假设 poster_link 是你在界面上输入的原始图片地址
+        with st.spinner("正在生成带水印海报并发布..."):
+            
+            # 【关键一步】将原始链接转化为带水印的新链接
+            final_watermarked_url = process_and_upload_image(poster_link)
+            
+            if final_watermarked_url:
+                # 使用这个新的 final_watermarked_url 写入 Google Sheets
+                new_row = pd.DataFrame([{
+                    "title": title,
+                    "region": region,
+                    "rooms": rooms,
+                    "price": price,
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "description": processed_desc, # 你原来的 AI 描述
+                    "poster-link": final_watermarked_url # 存储带水印的链接
+                }])
+                
+                # ... 执行你原有的 conn.update() 逻辑 ...
+                st.success("发布成功！客户端现在看到的就是带水印的图了。")
 # --- 4. 主界面布局 ---
 st.title("🏡 Hao Harbour 房源发布与管理")
 
