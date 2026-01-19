@@ -12,7 +12,7 @@ st.markdown("""
     <style>
     /* 1. 修复筛选房源标题颜色：强制改为白色 */
     .st-expander {
-    background-color: #1a1c23 !important; /* 换成深黑色背景 */
+    background-color: #16211a !important; /* 换成深黑色背景 */
     border: 2px solid #bfa064 !important; /* 金色边框 */
 }
     .st-expanderHeader p {
