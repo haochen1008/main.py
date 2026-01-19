@@ -177,10 +177,48 @@ try:
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
 
-    # --- TAB 1: 房源展示 ---
-# --- TAB 1: 房源展示 ---
+        # --- TAB 1: 房源展示 ---
     with tabs[0]:
-        # 1. 强制修复文字颜色 CSS (适配浅色背景)
+        # --- 核心修改：给筛选区域加一个背景色，让白字能看见 ---
+        st.markdown("""
+            <style>
+                /* 1. 将整个筛选器容器设为深灰色背景 */
+                .st-expander {
+                    background-color: #2c2f33 !important;
+                    border: 1px solid #bfa064 !important;
+                    border-radius: 12px !important;
+                }
+                
+                /* 2. 确保标题文字是纯白色 */
+                .st-expanderHeader p {
+                    color: #ffffff !important;
+                    font-size: 16px !important;
+                    font-weight: bold !important;
+                }
+
+                /* 3. 内部选项文字也设为白色 */
+                .stMultiSelect label, .stSlider label {
+                    color: #ffffff !important;
+                }
+                
+                /* 4. 修改下拉框内的文字颜色，防止看不见 */
+                div[data-baseweb="select"] {
+                    color: #1a1c23 !important;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # 这里的提示框保持现在的金棕色风格
+        st.markdown('<div class="custom-warning">💡 温馨提示：更多伦敦优质房源，请咨询微信：HaoHarbour_UK</div>', unsafe_allow_html=True)
+        
+        # 筛选器部分 (逻辑不动，样式会自动应用上面的 CSS)
+        with st.expander("🔍 筛选房源 (Filter Options)"):
+            f1, f2 = st.columns(2)
+            sel_reg = f1.multiselect("Region", options=df['region'].unique().tolist())
+            sel_room = f2.multiselect("Rooms", options=df['rooms'].unique().tolist())
+            max_p = st.slider("Max Price", 1000, 15000, 15000)
+
+        
         st.markdown("""
             <style>
                 /* 修复筛选器标题颜色：改为深灰色/金色 */
