@@ -200,10 +200,17 @@ except:
     st.info("Loading properties...")
 
 with tabs[1]:
-    st.markdown("### 🛠️ 全方位英国置业管家")
+    st.markdown("### 🛠️ 全方位英国租房管家")
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        st.info("📍 **全英选房**\n\n深耕伦敦、曼彻斯特、伯明翰等核心城市。根据您的预算与需求，筛选全英最优质、最具潜力的房源。")
+        st.info("📍 **全英选房**\n\n精准定向选址 (Bespoke Property Search)
+不仅是找房子，更是匹配生活方式。
+• 覆盖城市： 深度覆盖伦敦 (London)、曼彻斯特 (Manchester)、伯明翰 (Birmingham) 等核心求学区域。
+• 需求画像： 根据学生所在校区、预算偏好、安全系数及周边交通进行大数据筛选。。")
+
+
+
+        
         st.info("📝 **账单托管**\n\n为您处理繁琐的英国水电网、Council Tax 等账单注册，确保您拎包入住，无后顾之忧。")
     with col_s2:
         st.info("🤝 **全程陪跑**\n\n从看房、法律文书跟进到最终拿钥匙，我们提供专业且透明的中立建议。")
