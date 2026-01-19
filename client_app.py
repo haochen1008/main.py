@@ -59,56 +59,54 @@ def toggle_fav(title):
 def show_details(item):
     st.image(item['poster-link'], use_container_width=True)
     
-    # 基本信息
+    # 基础信息
     st.markdown(f"📅 **起租日期/发布**: {item['date']}")
     st.markdown("### 📋 房源亮点")
     st.write(item['description'])
     st.divider()
     
-    # --- 核心联系通道 ---
+    # --- 核心联系通道：优先级 微信 > WhatsApp > 电话 ---
     st.markdown("💬 **立即咨询 Hao Harbour**")
     
-    # 设置你的联系方式
-    # 请务必在此处修改为你的真实号码（纯数字，如 447123456789）
+    wechat_id = "HaoHarbour_UK"
     phone_number = "447000000000" 
-    encoded_msg = f"您好，我想咨询房源：{item['title']} (租金 £{item['price']})。请问还可以预约看房吗？"
-    whatsapp_url = f"https://wa.me/{phone_number}?text={encoded_msg}"
-
-    # 并排按钮：WhatsApp 与 拨号
-    col_a, col_b = st.columns(2)
-    with col_a:
+    
+    # 1. 微信区域：强化复制和跳转感
+    with st.container(border=True):
+        st.markdown(f"✨ **微信 ID:** `{wechat_id}`")
+        # 复制引导按钮：weixin:// 是通用跳转微信的协议
         st.markdown(f'''
-            <a href="{whatsapp_url}" target="_blank" style="text-decoration:none;">
-                <button style="width:100%; height:45px; border-radius:10px; border:none; background:#25D366; color:white; font-weight:bold; cursor:pointer;">
-                    WhatsApp 咨询
+            <a href="weixin://" style="text-decoration:none;">
+                <button style="width:100%; height:40px; border-radius:10px; border:none; background:#1AAD19; color:white; font-weight:bold; cursor:pointer; width:100%;">
+                    复制 ID 并跳转微信
                 </button>
             </a>
         ''', unsafe_allow_html=True)
-    with col_b:
-        st.markdown(f'''
-            <a href="tel:+{phone_number}" style="text-decoration:none;">
-                <button style="width:100%; height:45px; border-radius:10px; border:1px solid #25D366; background:white; color:#25D366; font-weight:bold; cursor:pointer;">
-                    📞 拨打电话
-                </button>
-            </a>
-        ''', unsafe_allow_html=True)
-    
-    st.write("") 
-    
-    # 微信与分享区
-    with st.expander("更多联系方式 & 分享"):
-        # 微信部分
         if os.path.exists("wechat_qr.png"):
-            st.image("wechat_qr.png", caption="扫码加微信: HaoHarbour_UK", width=180)
-        else:
-            st.write("微信客服: **HaoHarbour_UK**")
-        
-        st.divider()
-        
-        # 修复后的分享功能：使用 code 块让用户点击即可复制
-        st.write("📢 **房源分享语 (长按下方代码框复制):**")
-        share_msg = f"Hao Harbour 房源推荐：{item['title']}，租金 £{item['price']}/pcm。详情请咨询微信：HaoHarbour_UK"
-        st.code(share_msg, language=None)
+            st.image("wechat_qr.png", caption="或长按识别二维码", width=150)
+
+    # 2. WhatsApp 和 电话 (紧凑排布)
+    col1, col2 = st.columns(2)
+    with col1:
+        whatsapp_url = f"https://wa.me/{phone_number}?text=您好，我想咨询房源：{item['title']}"
+        st.markdown(f'<a href="{whatsapp_url}" target="_blank"><button style="width:100%; height:40px; border-radius:8px; background:#25D366; color:white; border:none; font-weight:bold;">WhatsApp</button></a>', unsafe_allow_html=True)
+    with col2:
+        st.markdown(f'<a href="tel:+{phone_number}"><button style="width:100%; height:40px; border-radius:8px; background:white; color:#25D366; border:1px solid #25D366; font-weight:bold;">📞 拨号</button></a>', unsafe_allow_html=True)
+
+    st.divider()
+
+    # 3. 分享功能：海报下载 + 详细文字
+    st.markdown("🔗 **分享此房源**")
+    st.download_button(
+        label="🖼️ 下载精美海报 (可发朋友圈)",
+        data=requests.get(item['poster-link']).content,
+        file_name=f"HaoHarbour_{item['title']}.jpg",
+        mime="image/jpeg",
+        use_container_width=True
+    )
+    
+    share_msg = f"🏠 {item['title']}\n💰 £{int(item['price']):,}/pcm\n📍 {item['region']}\n✨ {item['description']}\n💬 微信咨询: {wechat_id}"
+    st.code(share_msg, language=None)
 
 # --- 5. 渲染 Header ---
 logo_file = "logo.png" if os.path.exists("logo.png") else "logo.jpg"
