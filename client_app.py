@@ -69,7 +69,7 @@ def show_details(item):
     st.markdown("💬 **立即咨询 Hao Harbour**")
     
     wechat_id = "HaoHarbour_UK"
-    phone_number = "447000000000" 
+    phone_number = "447450912493" 
     
     # 1. 微信区域：强化复制和跳转感
     with st.container(border=True):
