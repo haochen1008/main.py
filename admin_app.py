@@ -136,42 +136,55 @@ with tab1:
                         except Exception as e:
                             st.error(f"同步失败: {e}")
 
-# --- TAB 2: 管理与统计 ---
+# --- 在 admin_app.py 的 Tab 2 部分进行以下更新 ---
+
 with tab2:
-    st.subheader("📈 房源热度统计")
+    st.subheader("📈 房源热度统计 & 管理")
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         manage_df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
         
         if not manage_df.empty:
-            # 安全检查 views 列是否存在
-            if 'views' not in manage_df.columns:
-                manage_df['views'] = 0
-            
-            # 数据看板
+            # 基础统计指标
             m1, m2 = st.columns(2)
-            m1.metric("网站总曝光 (总点击次数)", int(manage_df['views'].sum()))
+            m1.metric("网站总曝光", int(manage_df['views'].sum()) if 'views' in manage_df.columns else 0)
             m2.metric("在线房源总数", len(manage_df))
             
-            # 排行图表
-            st.write("### 房源热度排行")
-            chart_data = manage_df[['title', 'views']].sort_values(by='views', ascending=False)
-            st.bar_chart(chart_data.set_index('title'))
-            
             st.divider()
+
+            # --- 新增功能区：刷新与加精 ---
+            st.subheader("⚙️ 房源快速操作")
+            target_title = st.selectbox("选择目标房源", options=manage_df['title'].tolist())
             
-            # 删除功能
-            to_delete = st.multiselect("下架房源", options=manage_df['title'].tolist())
-            if st.button("🗑️ 确认下架"):
-                if to_delete:
-                    new_df = manage_df[~manage_df['title'].isin(to_delete)]
-                    conn.update(worksheet="Sheet1", data=new_df)
-                    st.success("下架成功")
-                    st.rerun()
+            col_ref, col_feat, col_del = st.columns(3)
             
-            # 详细表格
+            # 功能 1: 刷新日期 (Refresh)
+            if col_ref.button("🔄 刷新日期 (置顶)", use_container_width=True):
+                manage_df.loc[manage_df['title'] == target_title, 'date'] = datetime.now().strftime("%Y-%m-%d")
+                # 重新排序，让日期最新的在最上面
+                manage_df = manage_df.sort_values(by='date', ascending=False)
+                conn.update(worksheet="Sheet1", data=manage_df)
+                st.success(f"已将 《{target_title}》 刷新至今日日期！")
+                st.rerun()
+
+            # 功能 2: 设为精选 (Feature)
+            current_status = manage_df.loc[manage_df['title'] == target_title, 'is_featured'].values[0] if 'is_featured' in manage_df.columns else False
+            btn_label = "⭐ 取消精选" if current_status else "🌟 设为精选"
+            if col_feat.button(btn_label, use_container_width=True):
+                if 'is_featured' not in manage_df.columns:
+                    manage_df['is_featured'] = False
+                manage_df.loc[manage_df['title'] == target_title, 'is_featured'] = not current_status
+                conn.update(worksheet="Sheet1", data=manage_df)
+                st.success(f"已更新 《{target_title}》 的精选状态！")
+                st.rerun()
+
+            # 原有删除功能
+            if col_del.button("🗑️ 确认下架", use_container_width=True, type="secondary"):
+                new_df = manage_df[manage_df['title'] != target_title]
+                conn.update(worksheet="Sheet1", data=new_df)
+                st.rerun()
+
+            st.write("### 详细数据表")
             st.dataframe(manage_df, use_container_width=True)
-        else:
-            st.info("暂无房源数据")
     except Exception as e:
-        st.error(f"加载看板失败: {e}")
+        st.error(f"加载管理页面失败: {e}")
