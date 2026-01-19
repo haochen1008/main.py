@@ -22,10 +22,21 @@ st.markdown("""
 # --- 2. 详情弹窗函数 (保留所有交互) ---
 @st.dialog("房源详情")
 def show_details(item):
+    # --- 新增：点击即加 1 的逻辑 ---
+    try:
+        conn_v = st.connection("gsheets", type=GSheetsConnection)
+        df_v = conn_v.read(worksheet="Sheet1", ttl=0)
+        # 找到这间房所在的行（根据你表格的标题）
+        if 'views' in df_v.columns:
+            # 精准定位这一行，views 数值加 1
+            df_v.loc[df_v['title'] == item['title'], 'views'] += 1
+            conn_v.update(worksheet="Sheet1", data=df_v)
+    except:
+        pass # 如果更新失败，不影响客户看房子
+    # --- 逻辑结束 ---
+
     st.image(item['poster-link'], use_container_width=True)
-    st.write(f"### {item['title']}")
-    st.write(f"💰 **Monthly Rent: £{item['price']}**")
-    
+    # ... 后面的代码保持不动 ...
     # --- 找回并优化的一键复制功能 ---
     st.markdown("#### 📖 房源亮点 (Highlights)")
     # 使用 st.code 展示描述，右上角会自动出现复制图标，且支持换行显示
