@@ -12,18 +12,15 @@ st.markdown("""
     <style>
     /* 1. 修复筛选房源标题颜色：强制改为白色 */
 /* 1. 这里的背景色换成最稳妥的深灰色 */
-    .st-expander {
-        background-color: #262730 !important; /* 换成这个代码 */
-        border: 1px solid #bfa064 !important; /* 保持金色边框 */
-        border-radius: 8px !important;
+   .st-expander {
+        background-color: #1a1c23 !important; /* 深墨黑背景 */
+        border: 1px solid #bfa064 !important; /* 金色边框 */
+        border-radius: 10px !important;
     }
 
-    /* 2. 这里的文字颜色强制改为香槟金，确保在深色底上清晰可见 */
     .st-expanderHeader p {
-        color: #bfa064 !important; /* 换成金色 */
-        font-weight: 700 !important;
-        font-size: 18px !important;
-    }
+        color: #ffffff !important; /* 纯白文字，绝对看得见 */
+        font-weight: bold !important;
     }
     
     /* 2. 修复温馨提示框：去掉突兀的鲜黄色，改为深色半透明 */
@@ -113,6 +110,18 @@ st.markdown("""
         margin-bottom: 10px;
         border: 1px solid #bfa064;
     }
+
+    /* 1. 隐藏顶部标题栏（包含 GitHub 图标、Deploy 按钮和菜单） */
+    header {visibility: hidden !important;}
+    [data-testid="stHeader"] {display: none !important;}
+
+    /* 2. 隐藏底部 "Made with Streamlit" 标签 */
+    footer {visibility: hidden !important;}
+    [data-testid="stFooter"] {display: none !important;}
+
+    /* 3. 针对 2024/2025 新版界面的额外强制隐藏 */
+    .stAppDeployButton {display: none !important;}
+    #MainMenu {visibility: hidden !important;}
 
     /* 精选标签样式 */
     .featured-badge {
