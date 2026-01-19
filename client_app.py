@@ -4,7 +4,13 @@ import pandas as pd
 import urllib.parse
 import base64
 
-/* 导航标签美化 */
+
+# --- 1. 页面配置与 CSS 深度优化 ---
+st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
+
+st.markdown("""
+    <style>
+    /* 导航标签美化 */
 .stTabs [data-baseweb="tab-list"] {
     gap: 20px;
     justify-content: center;
@@ -20,12 +26,6 @@ import base64
     color: #bfa064 !important;
     border-bottom: 2px solid #bfa064 !important;
 }
-
-# --- 1. 页面配置与 CSS 深度优化 ---
-st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
-
-st.markdown("""
-    <style>
     /* 解决卡片内部太挤的问题 */
     .property-info-container {
         padding: 20px 10px !important; /* 增加上下内边距 */
