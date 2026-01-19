@@ -104,7 +104,7 @@ def show_details(item):
     st.code("HaoHarbour", language=None)
     
     # 2. WhatsApp
-    wa_url = f"https://wa.me/447000000000?text=Interested in {item['title']}"
+    wa_url = f"https://wa.me/447450912493?text=Interested in {item['title']}"
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
     # 6. 下载
@@ -128,7 +128,7 @@ try:
 
     # --- TAB 1: 房源展示 ---
     with tabs[0]:
-        st.warning("💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK")
+        st.warning("💡 更多伦敦优质房源，请咨询微信：HaoHarbour")
         
         # 筛选器部分
         with st.expander("🔍 筛选房源 (Filter Options)"):
@@ -190,7 +190,7 @@ try:
             * **合同审计**：深度解读 Tenancy Agreement，确保押金受 TDS 保护。
             """)
             st.markdown("""
-            **轻松退房 (Ongoing Concierge)**
+            **轻松退房 (Easy Check Out)**
             * **设施检查**：协助查看验房报告，确保退房时押金全额退还。
             * **清洁安排**：协助安排深度退租清洁，长期合作，靠谱实惠。
             """)
@@ -200,7 +200,7 @@ try:
         st.markdown("### 👤 为什么选择 Hao Harbour？")
         st.info("""
         * **【名校精英视角】** 创始人拥有 **UCL（伦敦大学学院）本硕学历**，以校友身份深切理解留学生对学区安全及环境的严苛需求。
-        * **【行业巨头背景】** 曾任职于全球房产咨询五大行之一的 **JLL（仲量联行）**，引入世界级房地产专业标准与合规流程。
+        * **【行业巨头背景】** 曾任职于全球房产咨询五大行之一，财富500强公司的 **JLL（仲量联行）**，引入世界级房地产专业标准与合规流程。
         * **【十载英伦深耕】** 扎根英国生活 **10余年**，提供比导航更精准的社区治安、配套及族裔分布解析。
         * **【官方战略合作】** 与众多本土管理公司建立长期稳固合作，掌握大量“独家房源”或优先配额。
         * **【金牌服务口碑】** 成功协助数百位国际留学生完成从“纸上申请”到“温馨入住”的完美过渡。
@@ -212,10 +212,10 @@ try:
         con_c1, con_c2 = st.columns(2)
         with con_c1:
             st.markdown("**微信咨询 (WeChat)**")
-            st.code("HaoHarbour_UK", language=None)
+            st.code("HaoHarbour", language=None)
         with con_c2:
             st.markdown("**WhatsApp**")
-            st.markdown('<a href="https://wa.me/447000000000" class="wa-link">💬 点击发起对话</a>', unsafe_allow_html=True)
+            st.markdown('<a href="https://wa.me/447450912493" class="wa-link">💬 点击发起对话</a>', unsafe_allow_html=True)
 
 except Exception as e:
     st.error(f"连接数据库出错: {e}")
