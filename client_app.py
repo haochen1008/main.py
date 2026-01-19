@@ -211,7 +211,6 @@ header {visibility: hidden;}
 [data-testid="stStatusWidget"] {display: none !important;}
 [data-testid="stToolbar"] {display: none !important;}
     </style>
-    iframe[title="streamlitApp"] { height: 100vh !important; margin-bottom: -50px !important; }
 """, unsafe_allow_html=True)
 
 # --- 2. 详情弹窗 (顺序：微信->WhatsApp->海报->信息->描述) ---
@@ -449,49 +448,49 @@ try:
         """, unsafe_allow_html=True)
 
     # --- TAB 4: 联系方式 (Contact) ---
-  # --- TAB 4: 联系方式 (Contact) ---
+   # --- TAB 4: 联系方式 (Contact) ---
     with tabs[3]:
-        st.markdown("<h2 style='text-align:center; color:#1a1c23;'>Contact Our Team</h2>", unsafe_allow_html=True)
+        # 引用 GitHub 仓库中的图片（请确保路径正确）
+        qr_url = "wechat_qr.png" 
+        
+        st.markdown("<h2 style='text-align:center; color:#1a1c23; margin-top:20px;'>Contact Our Team</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align:center; color:#888;'>专业顾问为您提供 1-on-1 中英双语置业咨询</p>", unsafe_allow_html=True)
         
-        # 使用列布局
+        # 使用列布局显示三个联系方式
         c1, c2, c3 = st.columns(3)
         
         with c1:
-            # 微信联系方式
             st.markdown("""
-                <div style="text-align: center; padding: 20px; background: white; border-radius: 15px; border: 1px solid #e0e0e0; height: 100%;">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3670/3670325.png" width="50" style="margin-bottom:15px;">
+                <div style="text-align: center; padding: 20px; background: white; border-radius: 15px; border: 1px solid #e0e0e0; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3670/3670325.png" width="50" style="margin-bottom:10px;">
                     <h4 style="margin:0; color:#1a1c23;">WeChat</h4>
-                    <p style="color:#bfa064; font-weight:bold; margin:10px 0;">HaoHarbour_UK</p>
+                    <p style="color:#bfa064; font-weight:bold; margin:5px 0;">HaoHarbour_UK</p>
                     <p style="font-size:12px; color:#999;">扫码或添加微信号咨询</p>
                 </div>
             """, unsafe_allow_html=True)
-            # 这里你可以换成你真正的微信二维码图片链接
-            st.image("https://via.placeholder.com/150?text=WeChat+QR+Code", use_container_width=True)
+            # 加载你 GitHub 里的二维码
+            st.image(qr_url, caption="扫一扫添加微信", use_container_width=True)
 
         with c2:
-            # WhatsApp 联系方式
             st.markdown("""
-                <div style="text-align: center; padding: 20px; background: white; border-radius: 15px; border: 1px solid #e0e0e0; height: 100%;">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" width="50" style="margin-bottom:15px;">
+                <div style="text-align: center; padding: 20px; background: white; border-radius: 15px; border: 1px solid #e0e0e0; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" width="50" style="margin-bottom:10px;">
                     <h4 style="margin:0; color:#1a1c23;">WhatsApp</h4>
-                    <p style="color:#25D366; font-weight:bold; margin:10px 0;">+44 7450 912493</p>
+                    <p style="color:#25D366; font-weight:bold; margin:5px 0;">+44 7450 912493</p>
                     <a href="https://wa.me/447450912493" target="_blank" style="text-decoration:none;">
-                        <button style="background-color:#25D366; color:white; border:none; padding:8px 15px; border-radius:20px; cursor:pointer; font-size:14px;">立即交谈</button>
+                        <div style="background-color:#25D366; color:white; padding:10px 20px; border-radius:25px; font-weight:bold; margin-top:10px;">立即交谈</div>
                     </a>
                 </div>
             """, unsafe_allow_html=True)
 
         with c3:
-            # 电话联系方式
             st.markdown("""
-                <div style="text-align: center; padding: 20px; background: white; border-radius: 15px; border: 1px solid #e0e0e0; height: 100%;">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3059/3059590.png" width="50" style="margin-bottom:15px;">
+                <div style="text-align: center; padding: 20px; background: white; border-radius: 15px; border: 1px solid #e0e0e0; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3059/3059590.png" width="50" style="margin-bottom:10px;">
                     <h4 style="margin:0; color:#1a1c23;">Phone</h4>
-                    <p style="color:#bfa064; font-weight:bold; margin:10px 0;">07450912493</p>
+                    <p style="color:#bfa064; font-weight:bold; margin:5px 0;">07450912493</p>
                     <a href="tel:07450912493" style="text-decoration:none;">
-                        <button style="background-color:#1a1c23; color:white; border:none; padding:8px 15px; border-radius:20px; cursor:pointer; font-size:14px;">拨打电话</button>
+                        <div style="background-color:#1a1c23; color:white; padding:10px 20px; border-radius:25px; font-weight:bold; margin-top:10px;">拨打电话</div>
                     </a>
                 </div>
             """, unsafe_allow_html=True)
