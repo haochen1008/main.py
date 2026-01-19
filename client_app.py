@@ -384,6 +384,31 @@ try:
                     
                     if st.button("查看详情 (Details)", key=f"btn_{idx}", use_container_width=True):
                         show_details(row)
+                        # 房源循环展示
+        cols = st.columns(3)
+        for i, (idx, row) in enumerate(f_df.iterrows()):
+            with cols[i % 3]:
+                with st.container(border=True):
+                    # 1. 顶部：精选标签
+                    if row.get('is_featured') == 1:
+                        st.markdown('<div style="text-align:right;"><span style="background:#ff4b4b; color:white; padding:2px 8px; border-radius:4px; font-size:10px;">🌟 精选房源</span></div>', unsafe_allow_html=True)
+                    
+                    # 2. 中间：房源图片
+                    st.image(row['poster-link'], use_container_width=True)
+                    
+                    # 3. 底部：文字信息（全部居中对齐）
+                    st.markdown(f"""
+                        <div style="text-align: center; padding: 10px 0;">
+                            <div style="font-weight: bold; color: #1a1c23; font-size: 1.1em; margin-bottom: 5px;">{row['title']}</div>
+                            <div style="color: #bfa064; font-size: 1.2em; font-weight: bold; margin-bottom: 5px;">£{int(row['price'])} /pcm</div>
+                            <div style="color: #666; font-size: 0.9em; margin-bottom: 5px;">📍 {row['region']} | {row['rooms']}</div>
+                            <div style="color: #999; font-size: 0.8em;">📅 发布日期: {row['date']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # 4. 详情按钮
+                    if st.button("查看详情 (Details)", key=f"btn_{idx}", use_container_width=True):
+                        show_details(row)
 
     # --- TAB 2, 3, 4 的逻辑保持在后面即可 ---
    # --- TAB 2: 我们的服务 ---
