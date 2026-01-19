@@ -65,7 +65,7 @@ def show_details(item):
     
     # 联系人配置
     wechat_id = "HaoHarbour_UK"
-    phone_num = "447450912493" 
+    phone_num = "447000000000" 
     
     st.markdown("💬 **立即咨询**")
     
@@ -85,61 +85,9 @@ def show_details(item):
 
     st.divider()
 
-    # 海报下载
-    try:
-        img_data = requests.get(item['poster-link']).content
-        st.download_button(label="🖼️ 下载精美海报", data=img_data, file_name=f"{item['title']}.jpg", mime="image/jpeg", use_container_width=True)
-    except:
-        pass
-
 # --- 4. 后续逻辑保持不变 (数据加载、Header、列表展示等) ---
 # (为了篇幅，以下省略部分重复逻辑，请确保在你的完整代码中保留获取数据和渲染列表的部分)
 # ... (此处接你原先代码的 Header 渲染、数据获取和网格展示部分) ...
-# --- 4. 详情弹窗 (微信改为一键复制模式，保持 WhatsApp 和 拨号) ---
-@st.dialog("房源详情")
-def show_details(item):
-    st.image(item['poster-link'], use_container_width=True)
-    
-    st.markdown(f"📅 **起租日期/发布**: {item['date']}")
-    st.markdown("### 📋 房源亮点")
-    st.write(item['description'])
-    st.divider()
-    
-    # 联系人配置
-    wechat_id = "HaoHarbour_UK"
-    phone_num = "447000000000" # 确保此处为您接听咨询的真实号码
-    
-    st.markdown("💬 **立即咨询 Hao Harbour**")
-    
-    # 1. 微信区域 (置顶并强化复制体验)
-    with st.container(border=True):
-        st.markdown(f"✨ **微信咨询：点击下方 ID 即可复制**")
-        # st.code 在手机端点一下通常会自动全选，非常方便用户复制
-        st.code(wechat_id, language=None)
-        st.caption("提示：复制后打开微信，在搜索框粘贴即可添加好友。")
-
-    # 2. WhatsApp & 拨号 (保持并排)
-    c1, c2 = st.columns(2)
-    with c1:
-        wa_msg = f"您好，我想咨询房源：{item['title']} (租金 £{item['price']})"
-        wa_url = f"https://wa.me/{phone_num}?text={wa_msg}"
-        st.markdown(f'''
-            <a href="{wa_url}" target="_blank" style="text-decoration:none;">
-                <button style="width:100%; height:45px; border-radius:10px; border:none; background:#25D366; color:white; font-weight:bold; cursor:pointer;">
-                    WhatsApp 咨询
-                </button>
-            </a>
-        ''', unsafe_allow_html=True)
-    with c2:
-        st.markdown(f'''
-            <a href="tel:+{phone_num}" style="text-decoration:none;">
-                <button style="width:100%; height:45px; border-radius:10px; border:1px solid #25D366; background:white; color:#25D366; font-weight:bold; cursor:pointer;">
-                    📞 拨打热线
-                </button>
-            </a>
-        ''', unsafe_allow_html=True)
-
-    st.divider()
 
     # 3. 分享与海报下载 (已包含 requests 修复)
     st.markdown("🔗 **分享此房源**")
@@ -158,7 +106,6 @@ def show_details(item):
     # 文字分享
     share_msg = f"Hao Harbour 房源推荐：\n🏠 {item['title']}\n💰 £{int(item['price']):,}/pcm\n✨ {item['description']}\n💬 微信: {wechat_id}"
     st.code(share_msg, language=None)
-
 # --- 5. 渲染 Header ---
 logo_file = "logo.png" if os.path.exists("logo.png") else "logo.jpg"
 if os.path.exists(logo_file):
