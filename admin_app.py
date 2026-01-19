@@ -92,21 +92,78 @@ with tab1:
                 st.success("发布成功！")
 
 with tab2:
+    st.subheader("📊 房源数据管理")
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
+        # 获取最新数据
         df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
+        
         if not df.empty:
-            st.metric("总曝光量", int(df['views'].sum()) if 'views' in df.columns else 0)
-            target = st.selectbox("选择操作房源", df['title'].tolist())
-            ca, cb, cc = st.columns(3)
-            if ca.button("🔄 Refresh (刷新日期)"):
-                df.loc[df['title'] == target, 'date'] = datetime.now().strftime("%Y-%m-%d")
-                conn.update(worksheet="Sheet1", data=df); st.rerun()
-            is_f = df.loc[df['title'] == target, 'is_featured'].values[0] if 'is_featured' in df.columns else False
-            if cb.button("🌟 切换精选状态"):
-                df.loc[df['title'] == target, 'is_featured'] = not is_f
-                conn.update(worksheet="Sheet1", data=df); st.rerun()
-            if cc.button("🗑️ 确认下架"):
-                conn.update(worksheet="Sheet1", data=df[df['title'] != target]); st.rerun()
-            st.dataframe(df)
-    except: st.info("暂无数据")
+            # 顶部统计
+            st.metric("总曝光量 (Total Views)", int(df['views'].sum()) if 'views' in df.columns else 0)
+            
+            # 选择要操作的房源
+            target_title = st.selectbox("选择要处理的房源", df['title'].tolist())
+            item_data = df[df['title'] == target_title].iloc[0]
+            
+            # 操作按钮行
+            col_btn1, col_btn2, col_btn3 = st.columns(3)
+            
+            # --- 核心：修改功能 (Edit) ---
+            with st.expander(f"📝 修改房源信息: {target_title}"):
+                with st.form(key="edit_form"):
+                    new_title = st.text_input("修改标题", value=item_data['title'])
+                    new_price = st.number_input("修改价格 (£/pcm)", value=int(item_data['price']))
+                    new_region = st.selectbox("修改区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦", "成外"], 
+                                            index=["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦", "成外"].index(item_data['region']) if item_data['region'] in ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦", "成外"] else 0)
+                    new_rooms = st.selectbox("修改房型", ["1房", "2房", "3房", "4房+"], 
+                                           index=["1房", "2房", "3房", "4房+"].index(item_data['rooms']) if item_data['rooms'] in ["1房", "2房", "3房", "4房+"] else 0)
+                    new_desc = st.text_area("修改描述 (支持复制)", value=item_data.get('description', ""), height=150)
+                    
+                    submit_edit = st.form_submit_button("💾 保存修改", type="primary")
+                    
+                    if submit_edit:
+                        # 更新当前行数据
+                        idx = df.index[df['title'] == target_title].tolist()[0]
+                        df.at[idx, 'title'] = new_title
+                        df.at[idx, 'price'] = new_price
+                        df.at[idx, 'region'] = new_region
+                        df.at[idx, 'rooms'] = new_rooms
+                        df.at[idx, 'description'] = new_desc
+                        
+                        conn.update(worksheet="Sheet1", data=df)
+                        st.success(f"✅ {target_title} 的信息已更新！")
+                        st.rerun()
+
+            # --- 其他快捷功能 ---
+            with col_btn1:
+                if st.button("🔄 刷新日期 (置顶)", use_container_width=True):
+                    df.loc[df['title'] == target_title, 'date'] = datetime.now().strftime("%Y-%m-%d")
+                    conn.update(worksheet="Sheet1", data=df)
+                    st.toast("日期已更新，房源已置顶")
+                    st.rerun()
+            
+            with col_btn2:
+                is_f = item_data.get('is_featured', False)
+                btn_label = "⭐ 取消精选" if is_f else "🌟 设为精选"
+                if st.button(btn_label, use_container_width=True):
+                    df.loc[df['title'] == target_title, 'is_featured'] = not is_f
+                    conn.update(worksheet="Sheet1", data=df)
+                    st.rerun()
+                    
+            with col_btn3:
+                if st.button("🗑️ 下架房源", type="secondary", use_container_width=True):
+                    new_df = df[df['title'] != target_title]
+                    conn.update(worksheet="Sheet1", data=new_df)
+                    st.warning("房源已删除")
+                    st.rerun()
+
+            st.divider()
+            st.write("### 当前房源列表预览")
+            st.dataframe(df, use_container_width=True)
+            
+        else:
+            st.info("目前还没有房源数据，请先在‘发布’页面录入。")
+            
+    except Exception as e:
+        st.error(f"数据连接失败，请检查网络或 GSheets 配置。错误: {e}")
