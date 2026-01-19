@@ -127,114 +127,106 @@ with tabs[0]:
     # ... (这里放你原本的 Filter 和房源展示代码)
 
 try:
+    # 1. 读取数据
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
     
-    with st.expander("🔍 Filter Options"):
-        f1, f2 = st.columns(2)
-        sel_reg = f1.multiselect("Region", options=df['region'].unique().tolist())
-        sel_room = f2.multiselect("Rooms", options=df['rooms'].unique().tolist())
-        max_p = st.slider("Max Price", 1000, 15000, 15000)
+    # 2. 定义顶部导航标签
+    tabs = st.tabs(["🏠 精选房源 (Properties)", "🛠️ 我们的服务 (Services)", "👤 关于我们 (About Us)", "📞 联系方式 (Contact)"])
 
-    f_df = df.copy()
-    if sel_reg: f_df = f_df[f_df['region'].isin(sel_reg)]
-    if sel_room: f_df = f_df[f_df['rooms'].isin(sel_room)]
-    f_df = f_df[f_df['price'].fillna(0) <= max_p]
-    f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
-
-    # 展示房源卡片
- # 1. 确保这一行在 try 模块内，且左边有 4 个空格
-    cols = st.columns(3)
-    
-    # 2. 整个循环块
-    for i, (idx, row) in enumerate(f_df.iterrows()):
-        with cols[i % 3]:
-            # 创建一个相对定位容器，用于放置“精选”标签
-            st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
-            
-            # --- 精选标签逻辑 ---
-            # 检查 is_featured 是否为 1 或 True
-            is_feat = row.get('is_featured')
-            if is_feat == 1 or str(is_feat).lower() == 'true':
-                st.markdown("""
-                    <div style="
-                        position: absolute;
-                        top: 10px;
-                        left: 10px;
-                        background-color: #ff4b4b;
-                        color: white;
-                        padding: 4px 12px;
-                        border-radius: 6px;
-                        font-size: 11px;
-                        font-weight: bold;
-                        z-index: 10;
-                        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-                    ">🌟 精选房源</div>
-                """, unsafe_allow_html=True)
-
-            # --- 房源卡片内容 ---
-            with st.container(border=True):
-                # 房源大图
-                st.image(row['poster-link'], use_container_width=True)
-                
-                # 房源信息文字区（带间距优化）
-                st.markdown(f"""
-                    <div style="padding: 15px 10px 20px 10px; text-align: center;">
-                        <div style="font-weight: bold; font-size: 17px; margin-bottom: 5px;">{row['title']}</div>
-                        <div style="color: #bfa064; font-size: 19px; font-weight: bold; margin-bottom: 8px;">£{int(row['price'])}</div>
-                        <div style="color: #777; font-size: 12px; margin-bottom: 10px;">📍 {row['region']} | {row['rooms']}</div>
-                        <div style="color: #aaa; font-size: 11px; border-top: 1px solid #f0f0f0; padding-top: 10px;">
-                            发布日期: {row['date']}
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                # 查看详情按钮
-                if st.button("View Details", key=f"v_{idx}", use_container_width=True):
-                    show_details(row)
-            
-            # 闭合容器
-            st.markdown('</div>', unsafe_allow_html=True)
-
-except:
-    st.info("Loading properties...")
-
-with tabs[1]:
-    st.markdown("### 🛠️ 全方位英国租房管家")
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        st.info("📍 **全英选房**\n\n深度覆盖伦敦 (London)、曼彻斯特 (Manchester)、伯明翰 (Birmingham) 等核心求学区域。
-需求画像： 根据学生所在校区、预算偏好、安全系数及周边交通进行大数据筛选。")
+    # --- TAB 1: 房源展示 ---
+    with tabs[0]:
+        st.warning("💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK")
         
-        st.info("📝 **账单托管**\n\n为您处理繁琐的英国水电网、Council Tax 等账单注册，确保您拎包入住，无后顾之忧。")
-    with col_s2:
-        st.info("🤝 **全程陪跑**\n\n从看房、法律文书跟进到最终拿钥匙，我们提供专业且透明的中立建议。")
+        # 这里放你原来的筛选器代码 (Filter Options)
+        with st.expander("🔍 Filter Options"):
+            f1, f2 = st.columns(2)
+            sel_reg = f1.multiselect("Region", options=df['region'].unique().tolist())
+            sel_room = f2.multiselect("Rooms", options=df['rooms'].unique().tolist())
+            max_p = st.slider("Max Price", 1000, 15000, 15000)
 
-with tabs[2]:
-    st.markdown("### 👤 为什么选择我们？")
-    st.success("""
-    **资深背景，专业护航**
-    * **名校基因**：创始人毕业于 **UCL (伦敦大学学院)** 本硕，拥有超过 10 年英国生活经验。
-    * **行业高度**：曾任职于财富 500 强顶级房地产服务公司 **JLL (仲量联行)**，深谙行业规则与市场动向。
-    * **专业主义**：多年英国房产经验，累积服务数百位高净值客户，深知留学生与新移民的痛点。
-    """)
+        # 排序逻辑
+        f_df = df.copy()
+        if sel_reg: f_df = f_df[f_df['region'].isin(sel_reg)]
+        if sel_room: f_df = f_df[f_df['rooms'].isin(sel_room)]
+        f_df = f_df[f_df['price'].fillna(0) <= max_p]
+        f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
-with tabs[2]:
-    st.markdown("### 👤 为什么选择我们？")
-    st.success("""
-    **资深背景，专业护航**
-    * **名校基因**：创始人毕业于 **UCL (伦敦大学学院)** 本硕，拥有超过 10 年英国生活经验。
-    * **行业高度**：曾任职于财富 500 强顶级房地产服务公司 **JLL (仲量联行)**，深谙行业规则与市场动向。
-    * **专业主义**：多年英国房产经验，累积服务数百位高净值客户，深知留学生与新移民的痛点。
-    """)
+        # 房源卡片循环 (确保缩进正确)
+        cols = st.columns(3)
+        for i, (idx, row) in enumerate(f_df.iterrows()):
+            with cols[i % 3]:
+                st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
+                if row.get('is_featured') == 1:
+                    st.markdown('<div class="featured-badge">🌟 精选房源</div>', unsafe_allow_html=True)
+                
+                with st.container(border=True):
+                    st.image(row['poster-link'], use_container_width=True)
+                    st.markdown(f"""
+                        <div class="property-info-container">
+                            <div class="prop-title">{row['title']}</div>
+                            <div class="prop-price">£{int(row['price'])}</div>
+                            <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
+                            <div class="prop-date">发布日期: {row['date']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("View Details", key=f"v_{idx}", use_container_width=True):
+                        show_details(row)
+                st.markdown('</div>', unsafe_allow_html=True)
 
-with tabs[3]:
-    st.markdown("### 📞 预约您的私人顾问")
-    c_c1, c_c2 = st.columns(2)
-    with c_c1:
-        st.markdown("**微信咨询 (WeChat)**")
-        st.code("HaoHarbour_UK", language=None)
-    with c_c2:
-        st.markdown("**WhatsApp**")
-        wa_url = "https://wa.me/447000000000"
-        st.markdown(f'<a href="{wa_url}" style="background-color:#25D366; color:white; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:bold;">🟢 点击发起对话</a>', unsafe_allow_html=True)
+    # --- TAB 2: 我们的服务 (Our Services) ---
+    with tabs[1]:
+        st.markdown("## 🛠️ 全生命周期管家式关怀")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            with st.expander("📍 模块 1：精准定向选址", expanded=True):
+                st.write("""
+                • **深度覆盖**：伦敦 (London)、曼城 (Manchester)、伯明翰 (Birmingham) 等核心区。
+                • **需求画像**：根据校区、预算、安全系数及周边交通进行大数据筛选。
+                • **高清带看**：高清视频或实地报告，杜绝“买家秀”骗局。
+                """)
+            with st.expander("🔑 模块 3：极速入住管家", expanded=True):
+                st.write("""
+                • **Utilities 托管**：协助开通注册水、电、煤气及高性价比宽带。
+                • **政务处理**：指导申请 Council Tax 免税证明，节省高额开支。
+                • **设施检查 (Inventory)**：入住拍照存证，确保退房押金全额退还。
+                """)
+        
+        with c2:
+            with st.expander("⚖️ 模块 2：文书合规与风控", expanded=True):
+                st.write("""
+                • **租房审查 (Reference)**：针对无英国担保人痛点提供专业指导。
+                • **合同审计**：深度解读 Tenancy Agreement，确保押金受 TDS 保护。
+                • **议价谈判**：争取最优惠租金或最灵活租期。
+                """)
+            with st.expander("🌟 模块 4：增值生活支持", expanded=True):
+                st.write("""
+                • **疑难杂症咨询**：入住期间设备损坏或纠纷提供法律咨询。
+                • **升学续租指导**：前瞻性市场预测与优先留房建议。
+                """)
+
+    # --- TAB 3: 关于我们 (About Us) ---
+    with tabs[2]:
+        st.markdown("## 👤 为什么选择 Hao Harbour？")
+        st.info("""
+        • **【名校精英视角】** 创始人拥有 **UCL（伦敦大学学院）本硕学历**，以校友身份深切理解留学生对学区安全及环境的严苛需求。
+        • **【行业巨头背景】** 曾任职于全球房产咨询五大行之一的 **JLL（仲量联行）**，引入世界级专业标准。
+        • **【十载英伦深耕】** 扎根英国生活 **10余年**，提供比导航更精准的社区治安及族裔分布解析。
+        • **【官方战略合作】** 掌握大量不进入公开市场的“独家房源”或优先配额。
+        • **【金牌服务口碑】** 成功协助数百位留学生完成从“纸上申请”到“温馨入住”的完美过渡。
+        """)
+
+    # --- TAB 4: 联系方式 (Contact) ---
+    with tabs[3]:
+        st.markdown("## 📞 预约您的私人顾问")
+        cc1, cc2 = st.columns(2)
+        with cc1:
+            st.markdown("#### 微信 (WeChat)")
+            st.code("HaoHarbour_UK", language=None)
+        with cc2:
+            st.markdown("#### WhatsApp")
+            st.markdown('<a href="https://wa.me/447000000000" class="wa-link">🟢 发起即时对话</a>', unsafe_allow_html=True)
+
+except Exception as e:
+    st.error(f"连接数据库出错: {e}")
