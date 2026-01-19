@@ -209,7 +209,7 @@ try:
         """, unsafe_allow_html=True)
 
         # 这里的提示框保持现在的金棕色风格
-        st.markdown('<div class="custom-warning">💡 温馨提示：更多伦敦优质房源，请咨询微信：HaoHarbour_UK</div>', unsafe_allow_html=True)
+        #st.markdown('<div class="custom-warning">💡 温馨提示：更多伦敦优质房源，请咨询微信：HaoHarbour_UK</div>', unsafe_allow_html=True)
         
         # 筛选器部分 (逻辑不动，样式会自动应用上面的 CSS)
         with st.expander("🔍 筛选房源 (Filter Options)"):
