@@ -6,15 +6,28 @@ import pandas as pd
 import io, requests
 from datetime import datetime
 
-# --- 1. 基础配置与云端 ---
+# --- 1. 配置 ---
 st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
 cloudinary.config(cloud_name=st.secrets["CLOUDINARY_CLOUD_NAME"], api_key=st.secrets["CLOUDINARY_API_KEY"], api_secret=st.secrets["CLOUDINARY_API_SECRET"])
+DEEPSEEK_KEY = st.secrets["OPENAI_API_KEY"]
 
-# --- 2. 核心函数 ---
+# --- 2. 工具函数 ---
+def call_ai_logic(text):
+    """通用的 AI 提取逻辑"""
+    try:
+        headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}"}
+        prompt = f"翻译并精简成中文要点，需包含Available date，使用✔开头，禁止提及押金：\n{text}"
+        res = requests.post("https://api.deepseek.com/v1/chat/completions", 
+                            headers=headers, json={"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}]})
+        return res.json()['choices'][0]['message']['content']
+    except Exception as e:
+        return f"AI 提取失败: {str(e)}"
+
 def create_poster(files, title_text):
     try:
         canvas = Image.new('RGB', (800, 1200), (255, 255, 255))
         draw = ImageDraw.Draw(canvas)
+        # 尝试加载字体，失败则使用默认
         try: font_t = ImageFont.truetype("simhei.ttf", 45); font_f = ImageFont.truetype("simhei.ttf", 25)
         except: font_t = font_f = ImageFont.load_default()
         for i, f in enumerate(files[:6]):
@@ -25,86 +38,97 @@ def create_poster(files, title_text):
         return canvas
     except: return None
 
-# --- 3. 界面逻辑 ---
-tab1, tab2 = st.tabs(["🆕 发布新房源", "📊 数据看板与管理"])
+# --- 3. 页面布局 ---
+tab1, tab2 = st.tabs(["🆕 发布房源", "⚙️ 管理中心"])
 
+# --- 发布逻辑 ---
 with tab1:
-    st.subheader("录入房源")
-    c1, c2 = st.columns(2)
-    with c1:
-        t_title = st.text_input("标题")
-        t_reg = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦", "其它"])
-        t_room = st.selectbox("房型", ["Studio", "1房", "2房", "3房", "4房+"])
-        t_price = st.number_input("月租 (£)", value=3000)
-    with c2:
-        t_desc = st.text_area("展示描述", height=150)
-        t_pics = st.file_uploader("海报照片", accept_multiple_files=True)
-        if st.button("🚀 立即发布", type="primary"):
-            p = create_poster(t_pics, t_title)
-            if p:
-                buf = io.BytesIO(); p.save(buf, format='JPEG')
+    st.subheader("🚀 发布新房源")
+    if "new_ai_desc" not in st.session_state: st.session_state.new_ai_desc = ""
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        n_title = st.text_input("房源名称 (例如: River Park Tower)")
+        n_reg = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦", "其它"])
+        n_room = st.selectbox("房型", ["Studio", "1房", "2房", "3房", "4房+"])
+        n_price = st.number_input("月租 (£/pcm)", value=3000)
+        n_raw = st.text_area("粘贴英文原始描述", height=150)
+        if st.button("✨ 执行 AI 提取", key="btn_new_ai"):
+            st.session_state.new_ai_desc = call_ai_logic(n_raw)
+            
+    with col_b:
+        n_desc = st.text_area("编辑 AI 提取结果", value=st.session_state.new_ai_desc, height=200)
+        n_pics = st.file_uploader("上传图片（最少6张效果最佳）", accept_multiple_files=True)
+        if st.button("📤 确认发布并生成海报", type="primary"):
+            poster = create_poster(n_pics, n_title)
+            if poster:
+                buf = io.BytesIO(); poster.save(buf, format='JPEG')
                 url = cloudinary.uploader.upload(buf.getvalue())['secure_url']
                 conn = st.connection("gsheets", type=GSheetsConnection)
                 df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-                new_row = {"date": datetime.now().strftime("%Y-%m-%d"), "title": t_title, "region": t_reg, "rooms": t_room, "price": t_price, "poster-link": url, "description": t_desc, "views": 0, "is_featured": False}
+                new_row = {"date": datetime.now().strftime("%Y-%m-%d"), "title": n_title, "region": n_reg, "rooms": n_room, "price": n_price, "poster-link": url, "description": n_desc, "views": 0, "is_featured": False}
                 conn.update(worksheet="Sheet1", data=pd.concat([df, pd.DataFrame([new_row])], ignore_index=True))
-                st.success("发布成功！"); st.rerun()
+                st.success("房源已发布！"); st.rerun()
 
+# --- 管理逻辑 ---
 with tab2:
-    st.subheader("📈 全量房源管理")
+    st.subheader("📊 房源看板与快捷编辑")
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
         
         if not df.empty:
-            # 解决 NaN 转换问题
+            # 数据清洗，防止 NaN 导致报错
             df['price'] = df['price'].fillna(0).astype(int)
             df['views'] = df['views'].fillna(0).astype(int)
-            df['is_featured'] = df['is_featured'].fillna(False)
-
-            # 1. 核心表格展示 (显示日期、标题、价格、房型、点击量)
+            
+            # 1. 核心看板表格
             st.write("---")
-            # 增加一个显示用的列，方便区分重名
             display_df = df.copy()
-            display_df.insert(0, "操作ID", df.index) 
-            st.dataframe(display_df[['操作ID', 'date', 'title', 'price', 'rooms', 'views', 'is_featured']], use_container_width=True)
+            display_df.insert(0, "ID", df.index)
+            st.dataframe(display_df[['ID', 'date', 'title', 'region', 'price', 'rooms', 'views', 'is_featured']], use_container_width=True)
 
-            # 2. 交互式修改区
+            # 2. 选房编辑区
             st.write("---")
-            sel_id = st.number_input("👉 输入上方表格中的【操作ID】进行精准编辑", min_value=0, max_value=len(df)-1, step=1)
+            col_sel, col_stat = st.columns([1, 1])
+            with col_sel:
+                # 使用带 ID 的标题防止重名房子混淆
+                options = [f"{i} | {row['title']} (£{row['price']})" for i, row in df.iterrows()]
+                selected_option = st.selectbox("🎯 选择要编辑的房源", options)
+                sel_id = int(selected_option.split(" | ")[0])
+                row = df.iloc[sel_id]
             
-            # 精准抓取该行数据（解决重名问题）
-            row = df.iloc[sel_id]
-            st.info(f"正在管理: **{row['title']}** (发布日期: {row['date']})")
+            # 3. 快速操作按钮
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                if st.button("🔄 Refresh (置顶房源)", use_container_width=True):
+                    df.at[sel_id, 'date'] = datetime.now().strftime("%Y-%m-%d")
+                    conn.update(worksheet="Sheet1", data=df); st.rerun()
+            with c2:
+                is_f = row.get('is_featured', False)
+                if st.button("🌟 取消精选" if is_f else "🌟 设为精选", use_container_width=True):
+                    df.at[sel_id, 'is_featured'] = not is_f
+                    conn.update(worksheet="Sheet1", data=df); st.rerun()
+            with c3:
+                if st.button("🗑️ 立即下架房源", type="secondary", use_container_width=True):
+                    df = df.drop(df.index[sel_id])
+                    conn.update(worksheet="Sheet1", data=df); st.rerun()
 
-            # 快捷功能按钮
-            b1, b2, b3 = st.columns(3)
-            if b1.button("🔄 Refresh (置顶该房源)", use_container_width=True):
-                df.at[sel_id, 'date'] = datetime.now().strftime("%Y-%m-%d")
-                conn.update(worksheet="Sheet1", data=df); st.rerun()
-            
-            f_label = "⭐ 取消精选" if row['is_featured'] else "🌟 设为精选"
-            if b2.button(f_label, use_container_width=True):
-                df.at[sel_id, 'is_featured'] = not row['is_featured']
-                conn.update(worksheet="Sheet1", data=df); st.rerun()
-
-            if b3.button("🗑️ 确认下架 (从表格删除)", type="secondary", use_container_width=True):
-                df = df.drop(df.index[sel_id])
-                conn.update(worksheet="Sheet1", data=df); st.rerun()
-
-            # 编辑表单
-            with st.form("edit_precise"):
-                st.write("📝 修改详细信息 (Edit Details)")
-                e_title = st.text_input("标题", value=row['title'])
-                e_price = st.number_input("月租价格", value=int(row['price']))
-                e_desc = st.text_area("描述亮点", value=row.get('description', ''), height=200)
-                if st.form_submit_button("💾 保存全部修改", type="primary"):
-                    df.at[sel_id, 'title'] = e_title
-                    df.at[sel_id, 'price'] = e_price
-                    df.at[sel_id, 'description'] = e_desc
-                    conn.update(worksheet="Sheet1", data=df)
-                    st.success("更新成功！"); st.rerun()
+            # 4. 详细修改表单 (找回 AI 功能)
+            with st.expander("📝 修改房源详细内容 (含 AI 提取)", expanded=True):
+                with st.form("edit_form_final"):
+                    e_title = st.text_input("修改标题", value=row['title'])
+                    e_price = st.number_input("修改月租", value=int(row['price']))
+                    e_desc = st.text_area("描述亮点 (支持手动修改或 AI 覆盖)", value=row.get('description', ''), height=200)
+                    
+                    st.caption("提示：如需重新提取描述，请在发布页提取后复制到此处，或在此处直接修改。")
+                    if st.form_submit_button("💾 保存所有修改", type="primary", use_container_width=True):
+                        df.at[sel_id, 'title'] = e_title
+                        df.at[sel_id, 'price'] = e_price
+                        df.at[sel_id, 'description'] = e_desc
+                        conn.update(worksheet="Sheet1", data=df)
+                        st.success("修改成功！"); st.rerun()
         else:
-            st.info("暂无数据。")
+            st.info("暂无房源数据。")
     except Exception as e:
-        st.error(f"数据加载失败: {str(e)}")
+        st.error(f"连接出错: {str(e)}")
