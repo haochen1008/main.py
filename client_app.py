@@ -10,6 +10,29 @@ st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
 st.markdown("""
     <style>
+    /* 修复筛选器标题颜色，确保在深色背景下可见 */
+    .st-expanderHeader p {
+        color: white !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+    }
+    
+    /* 修复筛选器内部标签颜色 (Region, Rooms, Max Price) */
+    .st-emotion-cache-16ids99 p, .stMultiSelect label, .stSlider label {
+        color: #e0e0e0 !important;
+    }
+
+    /* 修复下拉菜单选项的文字颜色 */
+    div[data-baseweb="select"] div {
+        color: #1a1c23 !important; /* 下拉列表文字保持深色以便在白色背景上阅读 */
+    }
+
+    /* 让筛选器展开后的容器背景稍微亮一点，增加对比度 */
+    .st-expanderContent {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 0 0 12px 12px !important;
+        padding: 20px !important;
+    }
     /* 全局背景与字体 */
     .stApp { background-color: #fcfcfc; }
     
