@@ -211,12 +211,6 @@ try:
         # 这里的提示框保持现在的金棕色风格
         #st.markdown('<div class="custom-warning">💡 温馨提示：更多伦敦优质房源，请咨询微信：HaoHarbour_UK</div>', unsafe_allow_html=True)
         
-        # 筛选器部分 (逻辑不动，样式会自动应用上面的 CSS)
-        with st.expander("🔍 筛选房源 (Filter Options)"):
-            f1, f2 = st.columns(2)
-            sel_reg = f1.multiselect("Region", options=df['region'].unique().tolist())
-            sel_room = f2.multiselect("Rooms", options=df['rooms'].unique().tolist())
-            max_p = st.slider("Max Price", 1000, 15000, 15000)
 
         
         st.markdown("""
