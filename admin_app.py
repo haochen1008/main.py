@@ -5,40 +5,34 @@ import cloudinary
 import cloudinary.uploader
 import pandas as pd
 import io
-import os
 import requests
 from datetime import datetime
 
-# --- 1. 页面配置 ---
+# --- 1. 配置管理 ---
 st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
 
-# Cloudinary & DeepSeek 配置 (从 Secrets 读取)
 cloudinary.config(
     cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
     api_key = st.secrets["CLOUDINARY_API_KEY"],
     api_secret = st.secrets["CLOUDINARY_API_SECRET"]
 )
-DEEPSEEK_KEY = st.secrets["OPENAI_API_KEY"] # 这里假设你填的是 DeepSeek 的 Key
+DEEPSEEK_KEY = st.secrets["OPENAI_API_KEY"] 
 
-# --- 2. 核心函数：生成 6 宫格海报 (已加入水印功能) ---
+# --- 2. 核心函数：生成 6 宫格海报 (带水印) ---
 def create_poster(files, title_text):
     try:
-        # 创建 800x1200 的纯白画布
         canvas = Image.new('RGB', (800, 1200), (255, 255, 255))
         draw = ImageDraw.Draw(canvas)
         
-        # 加载字体
         try:
             font_title = ImageFont.truetype("simhei.ttf", 45)
             font_footer = ImageFont.truetype("simhei.ttf", 25)
-            # 水印字体
             font_watermark = ImageFont.truetype("simhei.ttf", 80)
         except:
             font_title = ImageFont.load_default()
             font_footer = ImageFont.load_default()
             font_watermark = ImageFont.load_default()
 
-        # 处理前 6 张图片 (2列3行)
         for i, f in enumerate(files[:6]):
             img = Image.open(f).convert('RGB')
             img = img.resize((390, 300), Image.Resampling.LANCZOS)
@@ -46,61 +40,33 @@ def create_poster(files, title_text):
             y = 5 + (i // 2) * 305
             canvas.paste(img, (x, y))
 
-        # --- 新增：水印逻辑 ---
-        # 创建一个透明层用于绘制水印
+        # 水印图层
         watermark_layer = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
         wm_draw = ImageDraw.Draw(watermark_layer)
         wm_text = "Hao Harbour"
-        
-        # 计算水印中心位置
         bbox = wm_draw.textbbox((0, 0), wm_text, font=font_watermark)
         w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        
-        # 在透明层正中心绘制半透明文字 (128 是半透明度)
         wm_draw.text(((800-w)/2, (900-h)/2), wm_text, font=font_watermark, fill=(255, 255, 255, 128))
-        
-        # 将水印层旋转 30 度（可选，防盗更强）
         watermark_layer = watermark_layer.rotate(30, expand=False)
-        
-        # 合并水印到主画布
         canvas.paste(watermark_layer, (0, 0), watermark_layer)
-        # ----------------------
 
-        # 底部写入标题
         draw.text((40, 950), title_text, font=font_title, fill=(0, 0, 0))
         draw.text((40, 1030), "Hao Harbour | London Excellence", font=font_footer, fill=(180, 160, 100))
-        
-        # 画一条装饰线
         draw.line([(40, 1010), (760, 1010)], fill=(200, 200, 200), width=2)
-        
         return canvas
     except Exception as e:
         st.error(f"海报生成失败: {e}")
         return None
 
-
-# --- 3. 核心函数：DeepSeek AI 提取 (提示词已优化) ---
+# --- 3. AI 提取函数 ---
 def call_ai_summary(raw_text):
     try:
         headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}", "Content-Type": "application/json"}
-        # 优化后的 Prompt：明确要求保留可用日期，剔除杂项
-        prompt = (
-            "你是一个专业的伦敦房产经纪助手。请将以下房源描述翻译并精简成中文要点：\n"
-            "1. 必须包含 'Available date' (起租日期)。\n"
-            "2. 使用✔符号开头，列出交通、周边生活、装修亮点。\n"
-            "3. 严格禁止包含以下内容：Deposit (押金)、Min. Tenancy (租期)、Let type (租赁类型)、Long term/Short term。\n"
-            "4. 语言要高级且吸引人。\n\n"
-            f"原始描述如下：\n{raw_text}"
-        )
-        data = {
-            "model": "deepseek-chat",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7
-        }
+        prompt = ("将描述翻译并精简成中文要点，需包含Available date，使用✔开头。禁止包含押金租期等。\n\n" + f"描述：{raw_text}")
+        data = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.7}
         response = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=data)
         return response.json()['choices'][0]['message']['content']
-    except Exception as e:
-        return f"AI 提取失败，请手动编辑。错误: {e}"
+    except: return "AI提取失败"
 
 # --- 4. 主界面 ---
 if "ai_desc" not in st.session_state: st.session_state.ai_desc = ""
@@ -172,31 +138,5 @@ with tab2:
             # 显示详细表格
             st.write("### 详细数据表")
             st.dataframe(manage_df, use_container_width=True)
-# --- TAB 2: 房源管理 (删除) ---
-with tab2:
-    st.subheader("📋 现有房源在线列表")
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        manage_df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-        
-        if manage_df.empty:
-            st.info("暂无在线房源")
-        else:
-            # 删除功能
-            to_delete = st.multiselect("选择要下架(删除)的房源标题", options=manage_df['title'].tolist())
-            
-            if st.button("🗑️ 确认下架选中房源"):
-                if to_delete:
-                    # 过滤掉要删除的行
-                    new_df = manage_df[~manage_df['title'].isin(to_delete)]
-                    conn.update(worksheet="Sheet1", data=new_df)
-                    st.success(f"已下架: {len(to_delete)} 套房源")
-                    st.rerun()
-                else:
-                    st.warning("请先选择房源")
-            
-            # 展示数据
-            st.dataframe(manage_df[['date', 'title', 'region', 'rooms', 'price']], use_container_width=True)
-            
-    except Exception as e:
+    except: st.info("暂无数据") e:
         st.error(f"列表加载失败: {e}")
