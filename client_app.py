@@ -262,27 +262,6 @@ try:
                     if st.button("查看详情 (Details)", key=f"btn_{idx}", use_container_width=True):
                         show_details(row)
 
-        # 房源循环展示 (确保这部分紧跟在 tabs[0] 之后)
-        cols = st.columns(3)
-        for i, (idx, row) in enumerate(f_df.iterrows()):
-            with cols[i % 3]:
-                st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
-                if row.get('is_featured') == 1:
-                    st.markdown('<div class="featured-badge">🌟 精选房源</div>', unsafe_allow_html=True)
-                
-                with st.container(border=True):
-                    st.image(row['poster-link'], use_container_width=True)
-                    st.markdown(f"""
-                        <div class="property-info-container">
-                            <div class="prop-title">{row['title']}</div>
-                            <div class="prop-price">£{int(row['price'])}</div>
-                            <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    if st.button("View Details", key=f"v_{idx}", use_container_width=True):
-                        show_details(row)
-                st.markdown('</div>', unsafe_allow_html=True)
-
     # --- TAB 2, 3, 4 的逻辑保持在后面即可 ---
    # --- TAB 2: 我们的服务 ---
     with tabs[1]:
