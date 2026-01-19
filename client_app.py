@@ -176,10 +176,15 @@ try:
     # 1. 获取数据
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
+    
+    # 2. 导航标签页 (这行相对于 try 缩进 4 个空格)
+    tabs = st.tabs(["🏠 精选房源 (Properties)", "🛠️ 我们的服务 (Services)", "👤 关于我们 (About Us)", "📞 联系方式 (Contact)"])
 
     # --- TAB 1: 房源展示 ---
-     with tabs[0]:
-        st.warning("💡 更多伦敦优质房源...") # 缩进 8 个空格
+    with tabs[0]:
+        # 这一行相对于 with 缩进 4 个空格 (总共 8 个)
+        st.markdown('<div class="custom-warning">💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK</div>', unsafe_allow_html=True)
+        
         # 筛选器部分
         with st.expander("🔍 筛选房源 (Filter Options)"):
             f1, f2 = st.columns(2)
@@ -187,36 +192,20 @@ try:
             sel_room = f2.multiselect("Rooms", options=df['rooms'].unique().tolist())
             max_p = st.slider("Max Price", 1000, 15000, 15000)
 
+        # 房源逻辑处理
         f_df = df.copy()
         if sel_reg: f_df = f_df[f_df['region'].isin(sel_reg)]
         if sel_room: f_df = f_df[f_df['rooms'].isin(sel_room)]
         f_df = f_df[f_df['price'].fillna(0) <= max_p]
-        # 确保精选房源置顶
         f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
+        # 房源循环展示
         cols = st.columns(3)
         for i, (idx, row) in enumerate(f_df.iterrows()):
             with cols[i % 3]:
                 st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
-                # 精选标签渲染
                 if row.get('is_featured') == 1:
                     st.markdown('<div class="featured-badge">🌟 精选房源</div>', unsafe_allow_html=True)
-                
-                with st.container(border=True):
-                    st.image(row['poster-link'], use_container_width=True)
-                    # 间距优化排版
-                    st.markdown(f"""
-                        <div class="property-info-container">
-                            <div class="prop-title">{row['title']}</div>
-                            <div class="prop-price">£{int(row['price'])}</div>
-                            <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
-                            <div class="prop-date">发布日期: {row['date']}</div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    if st.button("View Details", key=f"v_{idx}", use_container_width=True):
-                        show_details(row)
-                st.markdown('</div>', unsafe_allow_html=True)
-
     # --- TAB 2: 我们的服务 (Our Services) ---
    # --- TAB 2: 我们的服务 ---
     with tabs[1]:
