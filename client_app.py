@@ -366,24 +366,34 @@ try:
         cols = st.columns(3)
         for i, (idx, row) in enumerate(f_df.iterrows()):
             with cols[i % 3]:
+                # 外层容器增加边框
                 with st.container(border=True):
-                    # 精选标签
+                    # 1. 精选标签 (靠右显示)
                     if row.get('is_featured') == 1:
                         st.markdown('<div style="text-align:right;"><span style="background:#ff4b4b; color:white; padding:2px 8px; border-radius:4px; font-size:10px;">🌟 精选房源</span></div>', unsafe_allow_html=True)
                     
-                    # 房源图片
+                    # 2. 房源图片
                     st.image(row['poster-link'], use_container_width=True)
                     
-                    # 核心内容：找回日期并全部居中
+                    # 3. 核心信息区域：强制居中并加深日期颜色
                     st.markdown(f"""
-                        <div class="prop-center">
-                            <div class="prop-title">{row['title']}</div>
-                            <div class="prop-price">£{int(row['price'])} /pcm</div>
-                            <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
-                            <div class="prop-date">📅 发布日期: {row['date']}</div>
+                        <div style="text-align: center; width: 100%; padding: 10px 0;">
+                            <div style="font-weight: bold; color: #1a1c23; font-size: 1.15em; margin-bottom: 6px;">
+                                {row['title']}
+                            </div>
+                            <div style="color: #bfa064; font-size: 1.25em; font-weight: bold; margin-bottom: 6px;">
+                                £{int(row['price'])} /pcm
+                            </div>
+                            <div style="color: #444444; font-size: 0.95em; margin-bottom: 6px;">
+                                📍 {row['region']} | {row['rooms']}
+                            </div>
+                            <div style="color: #666666; font-size: 0.85em; font-weight: 500;">
+                                发布日期: {row['date']}
+                            </div>
                         </div>
                     """, unsafe_allow_html=True)
                     
+                    # 4. 详情按钮
                     if st.button("查看详情 (Details)", key=f"btn_{idx}", use_container_width=True):
                         show_details(row)
                        
