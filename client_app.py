@@ -178,43 +178,89 @@ try:
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
 
     # --- TAB 1: 房源展示 ---
+# --- TAB 1: 房源展示 ---
     with tabs[0]:
-        # 统一风格的提示框
-        st.markdown('<div class="custom-warning">💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK</div>', unsafe_allow_html=True)
-        
-        # 强制修复筛选器文字可见性
+        # 1. 强制修复文字颜色 CSS (适配浅色背景)
         st.markdown("""
             <style>
-                /* 强制筛选器标题为白色 */
+                /* 修复筛选器标题颜色：改为深灰色/金色 */
                 .st-expanderHeader p, .st-expanderHeader span {
-                    color: white !important;
+                    color: #1a1c23 !important;
                     font-weight: bold !important;
+                    font-size: 16px !important;
                 }
-                /* 修复温馨提示框样式 */
+                
+                /* 修复筛选器图标颜色 */
+                .st-expanderHeader svg {
+                    fill: #bfa064 !important;
+                }
+
+                /* 修复表单内部文字颜色 */
+                .stMultiSelect label, .stSlider label {
+                    color: #444444 !important;
+                    font-weight: 500 !important;
+                }
+
+                /* 温馨提示框：改为更高级的淡金色背景 */
                 .custom-warning {
-                    background-color: rgba(191, 160, 100, 0.1);
-                    color: #bfa064;
-                    padding: 15px;
-                    border: 1px solid rgba(191, 160, 100, 0.3);
-                    border-radius: 10px;
-                    margin-bottom: 20px;
+                    background-color: #fff9eb !important;
+                    color: #856404 !important;
+                    padding: 20px;
+                    border: 1px solid #ffeeba;
+                    border-radius: 12px;
+                    margin-bottom: 25px;
                     text-align: center;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
                 }
+
+                /* 房源卡片内部文字 */
+                .prop-title { font-weight: bold; color: #1a1c23; font-size: 1.1em; }
+                .prop-price { color: #bfa064; font-size: 1.2em; font-weight: bold; margin: 5px 0; }
+                .prop-tags { color: #666; font-size: 0.9em; }
             </style>
+            
+            <div class="custom-warning">
+                💡 <b>温馨提示：</b> 由于房源数量众多，网站仅展示部分精选房源。<br>
+                如需了解更多伦敦优质房源，请添加微信：<b>HaoHarbour_UK</b> 咨询。
+            </div>
         """, unsafe_allow_html=True)
 
+        # 2. 筛选器部分
         with st.expander("🔍 筛选房源 (Filter Options)"):
             f1, f2 = st.columns(2)
-            sel_reg = f1.multiselect("Region", options=df['region'].unique().tolist())
-            sel_room = f2.multiselect("Rooms", options=df['rooms'].unique().tolist())
-            max_p = st.slider("Max Price", 1000, 15000, 15000)
+            # 确保数据加载正常
+            sel_reg = f1.multiselect("选择区域 (Region)", options=df['region'].unique().tolist())
+            sel_room = f2.multiselect("房型 (Rooms)", options=df['rooms'].unique().tolist())
+            max_p = st.slider("最高预算 (Max Price £/pcm)", 1000, 15000, 15000)
 
-        # 房源逻辑处理
+        # 3. 房源逻辑与展示 (确保此处缩进正确)
         f_df = df.copy()
         if sel_reg: f_df = f_df[f_df['region'].isin(sel_reg)]
         if sel_room: f_df = f_df[f_df['rooms'].isin(sel_room)]
         f_df = f_df[f_df['price'].fillna(0) <= max_p]
         f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
+
+        # 渲染房源列表
+        cols = st.columns(3)
+        for i, (idx, row) in enumerate(f_df.iterrows()):
+            with cols[i % 3]:
+                # 房源卡片容器
+                with st.container(border=True):
+                    # 精选房源标签
+                    if row.get('is_featured') == 1:
+                        st.markdown('<span style="background:#ff4b4b; color:white; padding:2px 8px; border-radius:4px; font-size:12px;">🌟 精选房源</span>', unsafe_allow_html=True)
+                    
+                    st.image(row['poster-link'], use_container_width=True)
+                    st.markdown(f"""
+                        <div style="padding:10px 0;">
+                            <div class="prop-title">{row['title']}</div>
+                            <div class="prop-price">£{int(row['price'])} /pcm</div>
+                            <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button("查看详情 (Details)", key=f"btn_{idx}", use_container_width=True):
+                        show_details(row)
 
         # 房源循环展示 (确保这部分紧跟在 tabs[0] 之后)
         cols = st.columns(3)
