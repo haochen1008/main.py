@@ -128,6 +128,16 @@ st.markdown("""
         z-index: 10;
         box-shadow: 0 4px 10px rgba(255, 75, 75, 0.3);
     }
+    
+    /* 彻底隐藏右上角的 GitHub 图标、Deploy 按钮和三道杠菜单 */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* 针对 Streamlit 2025/2026 新版界面的强制隐藏逻辑 */
+.stAppDeployButton {display: none !important;}
+[data-testid="stStatusWidget"] {display: none !important;}
+[data-testid="stToolbar"] {display: none !important;}
     </style>
 """, unsafe_allow_html=True)
 
