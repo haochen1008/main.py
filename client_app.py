@@ -25,13 +25,22 @@ def show_details(item):
     st.image(item['poster-link'], use_container_width=True)
     st.write(f"### {item['title']}")
     st.write(f"💰 **Monthly Rent: £{item['price']}**")
-    st.markdown(item.get('description', '暂无详细说明'))
+    
+    # --- 找回并优化的一键复制功能 ---
+    st.markdown("#### 📖 房源亮点 (Highlights)")
+    # 使用 st.code 展示描述，右上角会自动出现复制图标，且支持换行显示
+    desc_text = item.get('description', '暂无详细说明')
+    st.code(desc_text, language=None) 
+    st.caption("✨ 点击上方框内右上角图标即可一键复制描述内容")
+    
     st.divider()
 
+    # ... 剩下的咨询按钮(WhatsApp, Maps等) 保持不变 ...
     c1, c2, c3 = st.columns(3)
     with c1:
         st.code("HaoHarbour_UK", language=None)
         st.caption("微信 ID (点击复制)")
+    # ... 后续代码同前 ...
     with c2:
         phone = "447000000000" 
         wa_url = f"https://wa.me/{phone}?text=" + urllib.parse.quote(f"Hi, I'm interested in {item['title']}")
