@@ -159,12 +159,12 @@ def show_details(item):
     st.markdown("📜 **Description (Click to Copy)**")
     st.code(item.get('description', 'No info'), language=None)
 
-        # 1. 微信 (置顶)
+     # 1. 微信 (置顶)
     st.markdown('<div class="wechat-header"><b>微信咨询 (WeChat):</b></div>', unsafe_allow_html=True)
-    st.code("HaoHarbour", language=None)
+    st.code("HaoHarbour_UK", language=None)
     
     # 2. WhatsApp
-    wa_url = f"https://wa.me/447450912493?text=Interested in {item['title']}"
+    wa_url = f"https://wa.me/447000000000?text=Interested in {item['title']}"
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
     # 6. 下载
