@@ -122,10 +122,33 @@ try:
     # 展示房源卡片
     cols = st.columns(3)
     for i, (idx, row) in enumerate(f_df.iterrows()):
+        # 找到 for 循环这一行，替换其内部逻辑：
+    cols = st.columns(3)
+    for i, (idx, row) in enumerate(f_df.iterrows()):
         with cols[i % 3]:
+            # --- 核心修改：增加一个相对定位的容器来放标签 ---
+            st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
+            
+            # 判断是否为精选房源，是则显示标签
+            if row.get('is_featured') == 1 or str(row.get('is_featured')).lower() == 'true':
+                st.markdown("""
+                    <div style="
+                        position: absolute;
+                        top: 10px;
+                        left: 10px;
+                        background-color: #ff4b4b;
+                        color: white;
+                        padding: 4px 12px;
+                        border-radius: 6px;
+                        font-size: 11px;
+                        font-weight: bold;
+                        z-index: 10;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                    ">🌟 精选房源</div>
+                """, unsafe_allow_html=True)
+
             with st.container(border=True):
                 st.image(row['poster-link'], use_container_width=True)
-                # 重新编排卡片内容，解决拥挤感并移除图标
                 st.markdown(f"""
                     <div class="property-info-container">
                         <div class="prop-title">{row['title']}</div>
@@ -136,5 +159,7 @@ try:
                 """, unsafe_allow_html=True)
                 if st.button("View Details", key=f"v_{idx}", use_container_width=True):
                     show_details(row)
+            
+            st.markdown('</div>', unsafe_allow_html=True) # 闭合相对定位容器
 except:
     st.info("Loading properties...")
