@@ -102,76 +102,76 @@ def call_ai_summary(raw_text):
     except Exception as e:
         return f"AI 提取失败，请手动编辑。错误: {e}"
 
-# --- 4. 主界面布局 ---
-st.title("🏡 Hao Harbour 房源发布与管理")
-
-# 初始化 Session State 用于预览
+# --- 4. 主界面 ---
 if "ai_desc" not in st.session_state: st.session_state.ai_desc = ""
 
-tab1, tab2 = st.tabs(["🆕 发布新房源", "🗂️ 房源管理 (删除)"])
+tab1, tab2 = st.tabs(["🆕 发布新房源", "📊 数据看板 & 管理"])
 
-# --- TAB 1: 发布房源 ---
 with tab1:
     col1, col2 = st.columns([1, 1])
-    
     with col1:
-        st.subheader("1. 填写基本信息")
-        title = st.text_input("房源名称 (如: Merino Gardens)")
+        st.subheader("1. 填写信息")
+        title = st.text_input("房源名称")
         region = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"])
         rooms = st.selectbox("房型", ["1房", "2房", "3房", "4房+"])
         price = st.number_input("月租 (£/pcm)", value=3000, step=100)
-        
-        raw_desc = st.text_area("粘贴英文原始描述 (用于 AI 提取)", height=200)
-        if st.button("✨ 执行 AI 智能提取"):
-            if raw_desc:
-                with st.spinner("DeepSeek 正在分析中..."):
-                    st.session_state.ai_desc = call_ai_summary(raw_desc)
-            else:
-                st.warning("请先粘贴英文描述")
-
+        raw_desc = st.text_area("粘贴英文描述", height=150)
+        if st.button("✨ 执行 AI 提取"):
+            st.session_state.ai_desc = call_ai_summary(raw_desc)
+    
     with col2:
-        st.subheader("2. 预览与发布")
-        # AI 提取后的结果，允许手动微调
-        final_desc = st.text_area("最终 Description (可微调)", value=st.session_state.ai_desc, height=250)
-        
-        photos = st.file_uploader("上传照片 (前6张将生成海报)", accept_multiple_files=True)
-        
-        if st.button("🚀 确认发布 (生成海报并同步)", type="primary"):
-            if not title or not photos or not final_desc:
-                st.error("请确保标题、描述和图片已准备就绪")
-            else:
-                with st.spinner("正在生成海报并上传云端..."):
-                    # 生成海报
-                    poster_img = create_poster(photos, title)
-                    if poster_img:
-                        # 转为字节流上传
-                        buf = io.BytesIO()
-                        poster_img.save(buf, format='JPEG')
-                        upload_res = cloudinary.uploader.upload(buf.getvalue())
-                        p_url = upload_res.get("secure_url")
-                        
-                        # 同步 Google Sheets (追加模式)
-                        try:
-                            conn = st.connection("gsheets", type=GSheetsConnection)
-                            df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-                            
-                            new_data = {
-                                "date": datetime.now().strftime("%Y-%m-%d"),
-                                "title": title,
-                                "region": region,
-                                "rooms": rooms,
-                                "price": price,
-                                "poster-link": p_url,
-                                "description": final_desc
-                            }
-                            updated_df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
-                            conn.update(worksheet="Sheet1", data=updated_df)
-                            
-                            st.success(f"✅ 《{title}》 已成功追加至数据库！")
-                            st.image(p_url, caption="生成的海报已同步至客户端", width=400)
-                        except Exception as e:
-                            st.error(f"数据库同步失败: {e}")
+        st.subheader("2. 预览发布")
+        final_desc = st.text_area("最终描述", value=st.session_state.ai_desc, height=150)
+        photos = st.file_uploader("上传照片", accept_multiple_files=True)
+        if st.button("🚀 确认发布", type="primary"):
+            with st.spinner("处理中..."):
+                poster_img = create_poster(photos, title)
+                if poster_img:
+                    buf = io.BytesIO(); poster_img.save(buf, format='JPEG')
+                    u_res = cloudinary.uploader.upload(buf.getvalue())
+                    p_url = u_res.get("secure_url")
+                    try:
+                        conn = st.connection("gsheets", type=GSheetsConnection)
+                        df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
+                        new_data = {
+                            "date": datetime.now().strftime("%Y-%m-%d"),
+                            "title": title, "region": region, "rooms": rooms, "price": price,
+                            "poster-link": p_url, "description": final_desc,
+                            "views": 0  # 新房源初始化浏览量为 0
+                        }
+                        updated_df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+                        conn.update(worksheet="Sheet1", data=updated_df)
+                        st.success("✅ 发布成功！")
+                    except Exception as e: st.error(f"同步失败: {e}")
 
+with tab2:
+    st.subheader("📈 房源热度监控")
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        manage_df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
+        
+        if not manage_df.empty:
+            # 总点击量统计
+            total_views = manage_df['views'].sum() if 'views' in manage_df.columns else 0
+            st.metric("网站总曝光量 (总点击次数)", total_views)
+            
+            # 排序：显示最火的房子
+            st.write("### 房源热度排名")
+            if 'views' in manage_df.columns:
+                chart_df = manage_df[['title', 'views']].sort_values(by='views', ascending=False)
+                st.bar_chart(chart_df.set_index('title'))
+            
+            # 删除功能保持不变
+            st.divider()
+            to_delete = st.multiselect("选择要删除的房源", options=manage_df['title'].tolist())
+            if st.button("🗑️ 确认删除"):
+                new_df = manage_df[~manage_df['title'].isin(to_delete)]
+                conn.update(worksheet="Sheet1", data=new_df)
+                st.rerun()
+                
+            # 显示详细表格
+            st.write("### 详细数据表")
+            st.dataframe(manage_df, use_container_width=True)
 # --- TAB 2: 房源管理 (删除) ---
 with tab2:
     st.subheader("📋 现有房源在线列表")
