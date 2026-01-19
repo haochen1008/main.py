@@ -122,44 +122,42 @@ st.markdown("<p style='text-align:center; color:#bfa064; font-size:12px; margin-
 tabs = st.tabs(["🏠 精选房源 (Properties)", "🛠️ 我们的服务 (Services)", "👤 关于我们 (About Us)", "📞 联系方式 (Contact)"])
 
 try:
-    # 1. 读取数据
+    # 1. 获取数据
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
     
-    # 2. 定义顶部导航标签
-    tabs = st.tabs(["🏠 精选房源 (Properties)", "🛠️ 我们的服务 (Services)", "👤 关于我们 (About Us)", "📞 联系方式 (Contact)"])
+    # 2. 导航标签页
+    tabs = st.tabs(["🏠 精选房源", "🛠️ 我们的服务", "👤 关于我们", "📞 联系方式"])
 
     # --- TAB 1: 房源展示 ---
-
     with tabs[0]:
-    # 把你原来的“筛选器 (Filter)”和“房源循环展示 (for loop)”代码全部放在这个 with 块下面
-    st.warning("💡 由于房源众多，无法全部展示，更多伦敦优质房源，请咨询微信：HaoHarbour")
-    # ... (这里放你原本的 Filter 和房源展示代码)
-    
-        # 这里放你原来的筛选器代码 (Filter Options)
-        with st.expander("🔍 Filter Options"):
+        st.warning("💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK")
+        
+        # 筛选器部分
+        with st.expander("🔍 筛选房源 (Filter Options)"):
             f1, f2 = st.columns(2)
             sel_reg = f1.multiselect("Region", options=df['region'].unique().tolist())
             sel_room = f2.multiselect("Rooms", options=df['rooms'].unique().tolist())
             max_p = st.slider("Max Price", 1000, 15000, 15000)
 
-        # 排序逻辑
         f_df = df.copy()
         if sel_reg: f_df = f_df[f_df['region'].isin(sel_reg)]
         if sel_room: f_df = f_df[f_df['rooms'].isin(sel_room)]
         f_df = f_df[f_df['price'].fillna(0) <= max_p]
+        # 确保精选房源置顶
         f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
-        # 房源卡片循环 (确保缩进正确)
         cols = st.columns(3)
         for i, (idx, row) in enumerate(f_df.iterrows()):
             with cols[i % 3]:
                 st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
+                # 精选标签渲染
                 if row.get('is_featured') == 1:
                     st.markdown('<div class="featured-badge">🌟 精选房源</div>', unsafe_allow_html=True)
                 
                 with st.container(border=True):
                     st.image(row['poster-link'], use_container_width=True)
+                    # 间距优化排版
                     st.markdown(f"""
                         <div class="property-info-container">
                             <div class="prop-title">{row['title']}</div>
@@ -174,57 +172,56 @@ try:
 
     # --- TAB 2: 我们的服务 (Our Services) ---
     with tabs[1]:
-        st.markdown("## 🛠️ 全生命周期管家式关怀")
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            with st.expander("📍 模块 1：精准定向选址", expanded=True):
-                st.write("""
-                • **深度覆盖**：伦敦 (London)、曼城 (Manchester)、伯明翰 (Birmingham) 等核心区。
-                • **需求画像**：根据校区、预算、安全系数及周边交通进行大数据筛选。
-                • **高清带看**：高清视频或实地报告，杜绝“买家秀”骗局。
-                """)
-            with st.expander("🔑 模块 3：极速入住管家", expanded=True):
-                st.write("""
-                • **Utilities 托管**：协助开通注册水、电、煤气及高性价比宽带。
-                • **政务处理**：指导申请 Council Tax 免税证明，节省高额开支。
-                • **设施检查 (Inventory)**：入住拍照存证，确保退房押金全额退还。
-                """)
-        
-        with c2:
-            with st.expander("⚖️ 模块 2：文书合规与风控", expanded=True):
-                st.write("""
-                • **租房审查 (Reference)**：针对无英国担保人痛点提供专业指导。
-                • **合同审计**：深度解读 Tenancy Agreement，确保押金受 TDS 保护。
-                • **议价谈判**：争取最优惠租金或最灵活租期。
-                """)
-            with st.expander("🌟 模块 4：增值生活支持", expanded=True):
-                st.write("""
-                • **疑难杂症咨询**：入住期间设备损坏或纠纷提供法律咨询。
-                • **升学续租指导**：前瞻性市场预测与优先留房建议。
-                """)
+        st.markdown("### 🛠️ 全生命周期管家式关怀")
+        # 模块 1 & 2
+        s_c1, s_c2 = st.columns(2)
+        with s_c1:
+            st.markdown("""
+            **模块 1：精准定向选址 (Bespoke Property Search)**
+            * **覆盖城市**：深度覆盖伦敦、曼彻斯特、伯明翰等核心求学区域。
+            * **需求画像**：根据校区、预算、安全系数及周边交通进行大数据筛选。
+            * **视频带看**：提供高清视频看房或实地考察报告，杜绝“买家秀”骗局。
+            """)
+            st.markdown("""
+            **模块 3：极速入住管家 (Home Setting-up Support)**
+            * **Utilities 托管**：协助开通水、电、煤气及高性价比宽带网络运营商。
+            * **政务处理**：指导申请 Council Tax 免税证明，节省高额开支。
+            * **设施检查**：入住当天协助拍照存证，确保退房时押金全额退还。
+            """)
+        with s_c2:
+            st.markdown("""
+            **模块 2：文书合规与风控 (Contract & Compliance)**
+            * **租房审查协助**：针对留学生无英国担保人痛点提供专业指导。
+            * **合同审计**：深度解读 Tenancy Agreement，确保押金受 TDS 保护。
+            * **议价谈判**：争取最优惠租金或最灵活租期条件。
+            """)
+            st.markdown("""
+            **模块 4：增值生活支持 (Ongoing Concierge)**
+            * **疑难杂症咨询**：入住期间设备损坏或纠纷提供法律咨询与支持。
+            * **升学续租指导**：针对下学年迁徙提供市场预测与优先留房建议。
+            """)
 
     # --- TAB 3: 关于我们 (About Us) ---
     with tabs[2]:
-        st.markdown("## 👤 为什么选择 Hao Harbour？")
+        st.markdown("### 👤 为什么选择 Hao Harbour？")
         st.info("""
-        • **【名校精英视角】** 创始人拥有 **UCL（伦敦大学学院）本硕学历**，以校友身份深切理解留学生对学区安全及环境的严苛需求。
-        • **【行业巨头背景】** 曾任职于全球房产咨询五大行之一的 **JLL（仲量联行）**，引入世界级专业标准。
-        • **【十载英伦深耕】** 扎根英国生活 **10余年**，提供比导航更精准的社区治安及族裔分布解析。
-        • **【官方战略合作】** 掌握大量不进入公开市场的“独家房源”或优先配额。
-        • **【金牌服务口碑】** 成功协助数百位留学生完成从“纸上申请”到“温馨入住”的完美过渡。
+        * **【名校精英视角】** 创始人拥有 **UCL（伦敦大学学院）本硕学历**，以校友身份深切理解留学生对学区安全及环境的严苛需求。
+        * **【行业巨头背景】** 曾任职于全球房产咨询五大行之一的 **JLL（仲量联行）**，引入世界级房地产专业标准与合规流程。
+        * **【十载英伦深耕】** 扎根英国生活 **10余年**，提供比导航更精准的社区治安、配套及族裔分布解析。
+        * **【官方战略合作】** 与众多本土管理公司建立长期稳固合作，掌握大量“独家房源”或优先配额。
+        * **【金牌服务口碑】** 成功协助数百位国际留学生完成从“纸上申请”到“温馨入住”的完美过渡。
         """)
 
     # --- TAB 4: 联系方式 (Contact) ---
     with tabs[3]:
-        st.markdown("## 📞 预约您的私人顾问")
-        cc1, cc2 = st.columns(2)
-        with cc1:
-            st.markdown("#### 微信 (WeChat)")
+        st.markdown("### 📞 预约您的私人顾问")
+        con_c1, con_c2 = st.columns(2)
+        with con_c1:
+            st.markdown("**微信咨询 (WeChat)**")
             st.code("HaoHarbour_UK", language=None)
-        with cc2:
-            st.markdown("#### WhatsApp")
-            st.markdown('<a href="https://wa.me/447000000000" class="wa-link">🟢 发起即时对话</a>', unsafe_allow_html=True)
+        with con_c2:
+            st.markdown("**WhatsApp**")
+            st.markdown('<a href="https://wa.me/447000000000" class="wa-link">💬 点击发起对话</a>', unsafe_allow_html=True)
 
 except Exception as e:
     st.error(f"连接数据库出错: {e}")
