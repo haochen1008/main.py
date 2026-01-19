@@ -181,3 +181,32 @@ try:
 
 except:
     st.info("Loading properties...")
+
+with tabs[1]:
+    st.markdown("### 🛠️ 全方位英国置业管家")
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        st.info("📍 **全英选房**\n\n深耕伦敦、曼彻斯特、伯明翰等核心城市。根据您的预算与需求，筛选全英最优质、最具潜力的房源。")
+        st.info("📝 **账单托管**\n\n为您处理繁琐的英国水电网、Council Tax 等账单注册，确保您拎包入住，无后顾之忧。")
+    with col_s2:
+        st.info("🤝 **全程陪跑**\n\n从看房、法律文书跟进到最终拿钥匙，我们提供专业且透明的中立建议。")
+
+with tabs[2]:
+    st.markdown("### 👤 为什么选择我们？")
+    st.success("""
+    **资深背景，专业护航**
+    * **名校基因**：创始人毕业于 **UCL (伦敦大学学院)** 本硕，拥有超过 10 年英国生活经验。
+    * **行业高度**：曾任职于财富 500 强顶级房地产服务公司 **JLL (仲量联行)**，深谙行业规则与市场动向。
+    * **专业主义**：多年英国房产经验，累积服务数百位高净值客户，深知留学生与新移民的痛点。
+    """)
+
+with tabs[3]:
+    st.markdown("### 📞 预约您的私人顾问")
+    c_c1, c_c2 = st.columns(2)
+    with c_c1:
+        st.markdown("**微信咨询 (WeChat)**")
+        st.code("HaoHarbour_UK", language=None)
+    with c_c2:
+        st.markdown("**WhatsApp**")
+        wa_url = "https://wa.me/447000000000"
+        st.markdown(f'<a href="{wa_url}" style="background-color:#25D366; color:white; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:bold;">🟢 点击发起对话</a>', unsafe_allow_html=True)
