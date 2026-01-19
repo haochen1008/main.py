@@ -4,12 +4,21 @@ import pandas as pd
 import os
 import base64
 import requests
-from datetime import datetime
 
-# --- 1. 基础页面配置 (保持原先的简洁风格) ---
+# --- 1. 基础配置 ---
 st.set_page_config(page_title="Hao Harbour | London Living", layout="wide")
 
-# --- 2. 核心 CSS 样式 (保持原先逻辑) ---
+# 初始化收藏夹逻辑 (防止报错)
+if 'favorites' not in st.session_state:
+    st.session_state.favorites = []
+
+def toggle_fav(title):
+    if title in st.session_state.favorites:
+        st.session_state.favorites.remove(title)
+    else:
+        st.session_state.favorites.append(title)
+
+# --- 2. 精简 CSS 样式 (保持你最满意的样子) ---
 st.markdown("""
     <style>
     .block-container { padding-top: 0rem !important; padding-bottom: 0rem !important; margin-top: -45px; }
@@ -36,21 +45,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 详情弹窗 (简洁版 + Google Maps) ---
+# --- 3. 详情弹窗 (地图 + 微信复制 + WhatsApp + 拨号) ---
 @st.dialog("房源详情")
 def show_details(item):
     st.image(item['poster-link'], use_container_width=True)
     
-    # --- 核心：Google Maps 跳转逻辑 ---
-    # 构造搜索词：房源名 + 伦敦
+    # 地图跳转逻辑
     map_query = f"{item['title']}, London".replace(" ", "+")
     map_url = f"https://www.google.com/maps/search/?api=1&query={map_query}"
     
-    col_t1, col_t2 = st.columns([2, 1])
-    with col_t1:
+    c_date, c_map = st.columns([2, 1])
+    with c_date:
         st.markdown(f"📅 **发布日期**: {item['date']}")
-    with col_t2:
-        # 极简样式的地图按钮
+    with c_map:
         st.markdown(f'''
             <a href="{map_url}" target="_blank" style="text-decoration:none;">
                 <button style="width:100%; height:32px; border-radius:6px; border:1px solid #ff4b4b; background:white; color:#ff4b4b; font-size:12px; font-weight:bold; cursor:pointer;">
@@ -63,57 +70,43 @@ def show_details(item):
     st.write(item['description'])
     st.divider()
     
-    # 联系人配置
+    # 联系配置
     wechat_id = "HaoHarbour_UK"
-    phone_num = "447000000000" 
+    phone_num = "447450912493" 
     
     st.markdown("💬 **立即咨询**")
     
-    # 微信复制区
+    # 微信区
     with st.container(border=True):
         st.markdown(f"✨ **微信 ID (点击即可复制):**")
         st.code(wechat_id, language=None)
         st.caption("复制后在微信搜索添加即可")
 
-    # WhatsApp & 拨号 (并排按钮)
-    c1, c2 = st.columns(2)
-    with c1:
+    # WhatsApp & 拨号
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
         wa_url = f"https://wa.me/{phone_num}?text=您好，咨询房源：{item['title']}"
         st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; height:45px; border-radius:10px; border:none; background:#25D366; color:white; font-weight:bold; cursor:pointer; width:100%;">WhatsApp</button></a>', unsafe_allow_html=True)
-    with c2:
+    with btn_col2:
         st.markdown(f'<a href="tel:+{phone_num}"><button style="width:100%; height:45px; border-radius:10px; border:1px solid #25D366; background:white; color:#25D366; font-weight:bold; cursor:pointer; width:100%;">📞 拨号</button></a>', unsafe_allow_html=True)
 
     st.divider()
 
-# --- 4. 后续逻辑保持不变 (数据加载、Header、列表展示等) ---
-# (为了篇幅，以下省略部分重复逻辑，请确保在你的完整代码中保留获取数据和渲染列表的部分)
-# ... (此处接你原先代码的 Header 渲染、数据获取和网格展示部分) ...
-
-    # 3. 分享与海报下载 (已包含 requests 修复)
-    st.markdown("🔗 **分享此房源**")
+    # 海报下载
     try:
-        img_data = requests.get(item['poster-link']).content
-        st.download_button(
-            label="🖼️ 下载精美海报 (可发朋友圈/转发)",
-            data=img_data,
-            file_name=f"HaoHarbour_{item['title']}.jpg",
-            mime="image/jpeg",
-            use_container_width=True
-        )
+        img_data = requests.get(item['poster-link'], timeout=5).content
+        st.download_button(label="🖼️ 下载精美海报", data=img_data, file_name=f"{item['title']}.jpg", mime="image/jpeg", use_container_width=True)
     except:
-        st.write("海报预览中...")
+        st.caption("海报生成中，请稍后重试...")
 
-    # 文字分享
-    share_msg = f"Hao Harbour 房源推荐：\n🏠 {item['title']}\n💰 £{int(item['price']):,}/pcm\n✨ {item['description']}\n💬 微信: {wechat_id}"
-    st.code(share_msg, language=None)
-# --- 5. 渲染 Header ---
+# --- 4. 渲染 Header ---
 logo_file = "logo.png" if os.path.exists("logo.png") else "logo.jpg"
 if os.path.exists(logo_file):
     with open(logo_file, "rb") as f:
-        data = base64.b64encode(f.read()).decode()
+        logo_data = base64.b64encode(f.read()).decode()
     st.markdown(f"""
         <div class="custom-header">
-            <img src="data:image/png;base64,{data}" class="logo-img">
+            <img src="data:image/png;base64,{logo_data}" class="logo-img">
             <div class="header-text">
                 <p class="header-title">HAO HARBOUR</p>
                 <p class="header-subtitle">EXCLUSIVE LONDON LIVING</p>
@@ -121,7 +114,7 @@ if os.path.exists(logo_file):
         </div>
     """, unsafe_allow_html=True)
 
-# --- 6. 获取数据 ---
+# --- 5. 获取数据 ---
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=0)
@@ -132,38 +125,40 @@ except Exception:
     st.info("🏠 正在为您加载最新房源...")
     st.stop()
 
-# --- 7. 手机端筛选器 ---
+# --- 6. 筛选布局 ---
 with st.expander("🔍 筛选房源 / 收藏夹", expanded=False):
-    t_a, t_b = st.tabs(["全部筛选", "❤️ 我的收藏"])
-    with t_a:
+    t1, t2 = st.tabs(["全部筛选", "❤️ 我的收藏"])
+    with t1:
         c1, c2, c3 = st.columns([1, 1, 1])
         with c1: f_reg = st.multiselect("区域", options=df['region'].unique().tolist())
         with c2: f_rm = st.multiselect("房型", options=df['rooms'].unique().tolist())
         with c3:
             df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
             f_price = st.slider("最高预算", 0, int(df['price'].max())+500, int(df['price'].max()))
-    with t_b:
-        show_fav = st.checkbox("仅看我收藏的")
+    with t2:
+        show_fav_only = st.checkbox("仅查看收藏房源")
 
-filtered = df.copy()
-if f_reg: filtered = filtered[filtered['region'].isin(f_reg)]
-if f_rm: filtered = filtered[filtered['rooms'].isin(f_rm)]
-filtered = filtered[filtered['price'] <= f_price]
-if 'show_fav' in locals() and show_fav: filtered = filtered[filtered['title'].isin(st.session_state.favorites)]
+# 过滤逻辑
+filtered_df = df.copy()
+if f_reg: filtered_df = filtered_df[filtered_df['region'].isin(f_reg)]
+if f_rm: filtered_df = filtered_df[filtered_df['rooms'].isin(f_rm)]
+filtered_df = filtered_df[filtered_df['price'] <= f_price]
+if show_fav_only:
+    filtered_df = filtered_df[filtered_df['title'].isin(st.session_state.favorites)]
 
-# --- 8. 房源展示 ---
-st.markdown(f"#### 📍 发现 {len(filtered)} 套精品房源")
-if not filtered.empty:
+# --- 7. 房源展示 ---
+st.markdown(f"#### 📍 发现 {len(filtered_df)} 套精品房源")
+if not filtered_df.empty:
     m_cols = st.columns(3)
-    for i, (idx, row) in enumerate(filtered.iterrows()):
+    for i, (idx, row) in enumerate(filtered_df.iterrows()):
         with m_cols[i % 3]:
             with st.container(border=True):
                 st.image(row['poster-link'], use_container_width=True)
-                tc1, tc2 = st.columns([4, 1])
-                with tc1: st.markdown(f"**{row['title']}**")
-                with tc2:
-                    fav_icon = "❤️" if row['title'] in st.session_state.favorites else "🤍"
-                    st.button(fav_icon, key=f"f_{idx}", on_click=toggle_fav, args=(row['title'],))
+                title_c1, title_c2 = st.columns([4, 1])
+                with title_c1: st.markdown(f"**{row['title']}**")
+                with title_c2:
+                    icon = "❤️" if row['title'] in st.session_state.favorites else "🤍"
+                    st.button(icon, key=f"f_{idx}", on_click=toggle_fav, args=(row['title'],))
                 st.caption(f"📍 {row['region']} | 🛏️ {row['rooms']}")
                 st.markdown(f"""<div class="meta-row"><span class="date-label">📅 {row['date']}</span>
                     <span style="color:#ff4b4b; font-weight:bold; font-size:18px;">£{int(row['price']):,}</span></div>""", unsafe_allow_html=True)
