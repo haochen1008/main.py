@@ -140,7 +140,7 @@ st.markdown("""
     /* 1. 隐藏手机端右下角的管理悬浮球 (Manage App button) */
 #viewerBadge, .viewerBadge_container__17768, [data-testid="stManageAppButton"] {
     display: none !important;
-}
+    }
 
 /* 2. 隐藏底部所有可能存在的 Streamlit 标签 */
 footer {visibility: hidden !important;}
@@ -153,7 +153,7 @@ header {visibility: hidden !important;}
 /* 4. 移除右下角的额外操作按钮（针对移动端优化） */
 .stApp [data-testid="stToolbar"] {
     display: none !important;
-}
+    }
     
     /* 彻底隐藏右上角的 GitHub 图标、Deploy 按钮和三道杠菜单 */
 #MainMenu {visibility: hidden;}
