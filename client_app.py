@@ -363,7 +363,7 @@ try:
         f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
         # 渲染房源列表
-       cols = st.columns(3)
+        cols = st.columns(3)
         for i, (idx, row) in enumerate(f_df.iterrows()):
             with cols[i % 3]:
                 with st.container(border=True):
