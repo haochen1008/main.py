@@ -20,29 +20,51 @@ cloudinary.config(
 )
 DEEPSEEK_KEY = st.secrets["OPENAI_API_KEY"] # 这里假设你填的是 DeepSeek 的 Key
 
-# --- 2. 核心函数：生成 6 宫格海报 ---
+# --- 2. 核心函数：生成 6 宫格海报 (已加入水印功能) ---
 def create_poster(files, title_text):
     try:
         # 创建 800x1200 的纯白画布
         canvas = Image.new('RGB', (800, 1200), (255, 255, 255))
         draw = ImageDraw.Draw(canvas)
         
-        # 加载字体 (确保仓库有 simhei.ttf)
+        # 加载字体
         try:
             font_title = ImageFont.truetype("simhei.ttf", 45)
             font_footer = ImageFont.truetype("simhei.ttf", 25)
+            # 水印字体
+            font_watermark = ImageFont.truetype("simhei.ttf", 80)
         except:
             font_title = ImageFont.load_default()
             font_footer = ImageFont.load_default()
+            font_watermark = ImageFont.load_default()
 
         # 处理前 6 张图片 (2列3行)
         for i, f in enumerate(files[:6]):
             img = Image.open(f).convert('RGB')
-            # 缩放并裁剪为 390x300
             img = img.resize((390, 300), Image.Resampling.LANCZOS)
             x = 5 + (i % 2) * 395
             y = 5 + (i // 2) * 305
             canvas.paste(img, (x, y))
+
+        # --- 新增：水印逻辑 ---
+        # 创建一个透明层用于绘制水印
+        watermark_layer = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
+        wm_draw = ImageDraw.Draw(watermark_layer)
+        wm_text = "Hao Harbour"
+        
+        # 计算水印中心位置
+        bbox = wm_draw.textbbox((0, 0), wm_text, font=font_watermark)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        
+        # 在透明层正中心绘制半透明文字 (128 是半透明度)
+        wm_draw.text(((800-w)/2, (900-h)/2), wm_text, font=font_watermark, fill=(255, 255, 255, 128))
+        
+        # 将水印层旋转 30 度（可选，防盗更强）
+        watermark_layer = watermark_layer.rotate(30, expand=False)
+        
+        # 合并水印到主画布
+        canvas.paste(watermark_layer, (0, 0), watermark_layer)
+        # ----------------------
 
         # 底部写入标题
         draw.text((40, 950), title_text, font=font_title, fill=(0, 0, 0))
@@ -55,6 +77,7 @@ def create_poster(files, title_text):
     except Exception as e:
         st.error(f"海报生成失败: {e}")
         return None
+
 
 # --- 3. 核心函数：DeepSeek AI 提取 (提示词已优化) ---
 def call_ai_summary(raw_text):
