@@ -71,6 +71,8 @@ with tab1:
                 st.success("房源已发布！"); st.rerun()
 
 # --- 管理逻辑 ---
+
+
 with tab2:
     st.subheader("📊 房源看板与快捷编辑")
     try:
@@ -87,6 +89,9 @@ with tab2:
             display_df = df.copy()
             display_df.insert(0, "ID", df.index)
             st.dataframe(display_df[['ID', 'date', 'title', 'region', 'price', 'rooms', 'views', 'is_featured']], use_container_width=True)
+
+            total_views = df['views'].sum()
+            st.metric("📈 网页总点击量", int(total_views))
 
             # 2. 选房编辑区
             st.write("---")
