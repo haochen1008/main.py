@@ -168,25 +168,52 @@ if show_fav_only:
 
 # --- 7. 房源展示 ---
     
-st.markdown(f"#### 📍 发现 {len(filtered_df)} 套精品房源")
-if not filtered_df.empty:
-    m_cols = st.columns(3)
-    for i, (idx, row) in enumerate(filtered_df.iterrows()):
-        with m_cols[i % 3]:
-            with st.container(border=True):
-                st.image(row['poster-link'], use_container_width=True)
-                title_c1, title_c2 = st.columns([4, 1])
-                with title_c1: st.markdown(f"**{row['title']}**")
-                with title_c2:
-                    icon = "❤️" if row['title'] in st.session_state.favorites else "🤍"
-                    st.button(icon, key=f"f_{idx}", on_click=toggle_fav, args=(row['title'],))
-                st.caption(f"📍 {row['region']} | 🛏️ {row['rooms']}")
-                st.markdown(f"""<div class="meta-row"><span class="date-label">📅 {row['date']}</span>
-                    <span style="color:#ff4b4b; font-weight:bold; font-size:18px;">£{int(row['price']):,}</span></div>""", unsafe_allow_html=True)
-                if st.button("查看详情 & 联系", key=f"b_{idx}", use_container_width=True):
-                    show_details(row)
-else:
-    st.warning("暂无房源。")
+# --- 修正后的详情弹窗逻辑 ---
+@st.dialog("房源详情")
+def show_details(item):
+    # 1. 先展示核心内容（确保用户体验，不卡顿）
+    st.image(item['poster-link'], use_container_width=True)
+    
+    # 检查是否是精选，如果是则显示标签
+    if item.get('is_featured', False):
+        st.info("🌟 本周精选房源")
+        
+    st.write(f"### {item['title']}")
+    st.markdown(item['description'])
+    st.divider()
+    
+    # 微信联系与下载
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.code("HaoHarbour_UK", language=None)
+        st.caption("点击 ID 复制微信")
+    with col_b:
+        st.download_button("🖼️ 下载海报", 
+                           data=requests.get(item['poster-link']).content, 
+                           file_name=f"{item['title']}.jpg")
+
+    # 2. 浏览量更新（放在最后，并增加错误处理，不影响展示）
+    if 'views_updated' not in st.session_state:
+        st.session_state.views_updated = []
+
+    # 确保同一个 Session 下同一个房子只增加一次 views，避免刷票
+    if item['title'] not in st.session_state.views_updated:
+        try:
+            conn = st.connection("gsheets", type=GSheetsConnection)
+            # 重新读取数据
+            full_df = conn.read(worksheet="Sheet1", ttl=0)
+            if 'views' in full_df.columns:
+                # 找到对应行并增加 1
+                idx = full_df.index[full_df['title'] == item['title']].tolist()
+                if idx:
+                    # 使用 .at 提高性能，直接修改单个单元格
+                    current_v = full_df.at[idx[0], 'views']
+                    full_df.at[idx[0], 'views'] = int(current_v) + 1
+                    conn.update(worksheet="Sheet1", data=full_df)
+                    st.session_state.views_updated.append(item['title'])
+        except Exception as e:
+            # 即使失败也不要在界面报错
+            pass
 
 st.divider()
 st.caption("© 2026 Hao Harbour Properties.")
