@@ -135,8 +135,6 @@ try:
     tabs = st.tabs(["🏠 精选房源 (Properties)", "🛠️ 我们的服务 (Services)", "👤 关于我们 (About Us)", "📞 联系方式 (Contact)"])
 
     # --- TAB 1: 房源展示 ---
-    with tabs[0]:
-        st.warning("💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK")
         
         # 这里放你原来的筛选器代码 (Filter Options)
         with st.expander("🔍 Filter Options"):
