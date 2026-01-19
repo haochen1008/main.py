@@ -162,10 +162,6 @@ try:
     # --- TAB 1: 房源展示 ---
    with tabs[0]:
         st.warning("💡 更多伦敦优质房源...") # 缩进 8 个空格
-        with st.expander("🔍 筛选房源 (Filter Options)"): # 缩进 8 个空格
-            # 内部内容缩进 12 个空格
-            f1, f2 = st.columns(2)
-        
         # 筛选器部分
         with st.expander("🔍 筛选房源 (Filter Options)"):
             f1, f2 = st.columns(2)
