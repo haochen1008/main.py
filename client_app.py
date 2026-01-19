@@ -111,17 +111,36 @@ st.markdown("""
         border: 1px solid #bfa064;
     }
 
-    /* 1. 隐藏顶部标题栏（包含 GitHub 图标、Deploy 按钮和菜单） */
-    header {visibility: hidden !important;}
-    [data-testid="stHeader"] {display: none !important;}
+/* 1. 彻底移除顶部状态栏（包含 GitHub 和 Manage App 入口） */
+    header, [data-testid="stHeader"] {
+        display: none !important;
+        height: 0 !important;
+        visibility: hidden !important;
+    }
 
-    /* 2. 隐藏底部 "Made with Streamlit" 标签 */
-    footer {visibility: hidden !important;}
-    [data-testid="stFooter"] {display: none !important;}
+    /* 2. 彻底移除底部 Streamlit 标志 */
+    footer, [data-testid="stFooter"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
 
-    /* 3. 针对 2024/2025 新版界面的额外强制隐藏 */
-    .stAppDeployButton {display: none !important;}
-    #MainMenu {visibility: hidden !important;}
+    /* 3. 针对手机端右下角“三个点”菜单和悬浮球的暴力隐藏 */
+    [data-testid="stStatusWidget"], 
+    .stAppDeployButton, 
+    #MainMenu, 
+    [data-testid="stToolbar"],
+    [data-testid="stManageAppButton"],
+    #viewerBadge {
+        display: none !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    /* 4. 移除移动端特有的交互栏 */
+    div[data-testid="stHeader"] ~ div {
+        --st-header-height: 0px !important;
+    }
 
     /* 精选标签样式 */
     .featured-badge {
