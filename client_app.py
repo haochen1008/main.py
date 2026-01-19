@@ -4,15 +4,22 @@ import pandas as pd
 import urllib.parse
 import base64
 
-# --- 1. 页面配置与 CSS ---
+# --- 1. 页面配置与 CSS 深度优化 ---
 st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
 st.markdown("""
     <style>
-    /* 彻底消除卡片底部空白 */
-    div[data-testid="stVerticalBlock"] > div { margin-bottom: -10px !important; }
-    
-    /* 筛选栏乱码修复 */
+    /* 解决卡片内部太挤的问题 */
+    .property-info-container {
+        padding: 20px 10px !important; /* 增加上下内边距 */
+        text-align: center;
+    }
+    .prop-title { font-weight: bold; font-size: 18px; margin-bottom: 8px; }
+    .prop-price { color: #bfa064; font-size: 20px; font-weight: bold; margin-bottom: 12px; }
+    .prop-tags { color: #888; font-size: 13px; margin-bottom: 8px; }
+    .prop-date { color: #bbb; font-size: 12px; margin-top: 10px; border-top: 1px solid #eee; padding-top: 8px; }
+
+    /* 修复筛选栏 */
     .st-expanderHeader > div:first-child { display: none !important; }
     .st-expanderHeader {
         background-color: #1a1c23 !important;
@@ -20,8 +27,8 @@ st.markdown("""
         border-radius: 12px !important;
     }
 
-    /* WhatsApp 品牌绿按钮 */
-    .wa-container {
+    /* WhatsApp 绿色按钮 */
+    .wa-link {
         background-color: #25D366 !important;
         color: white !important;
         text-align: center;
@@ -30,27 +37,27 @@ st.markdown("""
         font-weight: bold;
         text-decoration: none;
         display: block;
-        margin-top: 10px;
+        margin: 10px 0;
     }
 
-    /* 微信 ID 显眼框 */
-    .wechat-box {
-        background-color: #f0f2f6;
-        border: 1px solid #ddd;
+    /* 微信 ID 容器 */
+    .wechat-header {
+        background-color: #f8f9fa;
         padding: 10px;
-        border-radius: 10px;
+        border-radius: 10px 10px 0 0;
         text-align: center;
-        margin-bottom: 5px;
+        border: 1px solid #eee;
+        border-bottom: none;
     }
 
     #MainMenu, footer, .stAppDeployButton, [data-testid="stToolbar"] {visibility: hidden; display: none !important;}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 详情弹窗 (顺序完全重构) ---
+# --- 2. 详情弹窗 (顺序：微信->WhatsApp->海报->信息->描述) ---
 @st.dialog("Property Details")
 def show_details(item):
-    # 统计浏览
+    # 统计
     try:
         conn_v = st.connection("gsheets", type=GSheetsConnection)
         df_v = conn_v.read(worksheet="Sheet1", ttl=0)
@@ -58,42 +65,42 @@ def show_details(item):
         conn_v.update(worksheet="Sheet1", data=df_v)
     except: pass
 
-    # C. 房源海报 (放在微信和 WhatsApp 后面)
+    # 3. 房源海报
     st.image(item['poster-link'], use_container_width=True)
     
-    # D. 标题、价格与地图 (地图在右上角)
-    c_title, c_map = st.columns([2, 1])
-    with c_title:
+    # 4. 标题与地图
+    c_t, c_m = st.columns([2, 1])
+    with c_t:
         st.markdown(f"### {item['title']}")
         st.markdown(f"<h4 style='color:#bfa064; margin-top:-10px;'>£{item['price']}</h4>", unsafe_allow_html=True)
-    with c_map:
-        map_q = urllib.parse.quote(item['title'] + " London")
-        st.link_button("📍 Open Map", f"https://www.google.com/maps/search/?api=1&query={map_q}", use_container_width=True)
+    with c_m:
+        m_q = urllib.parse.quote(item['title'] + " London")
+        st.link_button("📍 Open Map", f"https://www.google.com/maps/search/?api=1&query={m_q}", use_container_width=True)
 
-    # E. 描述栏 (保留一键复制)
+    # 5. 描述
     st.markdown("---")
-    st.markdown("📜 **Description & Available Date**")
+    st.markdown("📜 **Description (Click to Copy)**")
     st.code(item.get('description', 'No info'), language=None)
 
-    # A. 微信放在最前面 (最明显)
-    st.markdown('<div class="wechat-box"><b>微信咨询 (WeChat):</b></div>', unsafe_allow_html=True)
+        # 1. 微信 (置顶)
+    st.markdown('<div class="wechat-header"><b>微信咨询 (WeChat):</b></div>', unsafe_allow_html=True)
     st.code("HaoHarbour_UK", language=None)
     
-    # B. WhatsApp 紧随其后
+    # 2. WhatsApp
     wa_url = f"https://wa.me/447000000000?text=Interested in {item['title']}"
-    st.markdown(f'<a href="{wa_url}" class="wa-container">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
-    st.write("") # 间距
-    
-    # F. 下载按钮放到最后
+    # 6. 下载
     st.write("---")
     try:
         img_data = urllib.request.urlopen(item['poster-link']).read()
-        st.download_button("📥 Save Poster", data=img_data, file_name=f"{item['title']}.jpg", mime="image/jpeg", use_container_width=True)
+        st.download_button("📥 Save Poster to Phone", data=img_data, file_name=f"{item['title']}.jpg", mime="image/jpeg", use_container_width=True)
     except: pass
 
 # --- 3. 主界面 ---
-st.markdown("<h1 style='text-align:center; color:#bfa064;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#bfa064; font-size:12px; margin-top:0; letter-spacing:3px;'>EXCLUSIVE LONDON LIVING</p>", unsafe_allow_html=True)
+
 st.warning("💡 更多伦敦优质房源，请咨询微信：HaoHarbour_UK")
 
 try:
@@ -112,21 +119,22 @@ try:
     f_df = f_df[f_df['price'].fillna(0) <= max_p]
     f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
-    # 展示卡片并加入发布日期
+    # 展示房源卡片
     cols = st.columns(3)
     for i, (idx, row) in enumerate(f_df.iterrows()):
         with cols[i % 3]:
             with st.container(border=True):
                 st.image(row['poster-link'], use_container_width=True)
+                # 重新编排卡片内容，解决拥挤感并移除图标
                 st.markdown(f"""
-                    <div style='text-align:center; padding:5px;'>
-                        <div style='font-weight:bold;'>{row['title']}</div>
-                        <div style='color:#bfa064; font-weight:bold;'>£{int(row['price'])}</div>
-                        <div style='color:#888; font-size:11px;'>📍 {row['region']} | {row['rooms']}</div>
-                        <div style='color:#bbb; font-size:10px;'>📅 {row['date']}</div>
+                    <div class="property-info-container">
+                        <div class="prop-title">{row['title']}</div>
+                        <div class="prop-price">£{int(row['price'])}</div>
+                        <div class="prop-tags">📍 {row['region']} | {row['rooms']}</div>
+                        <div class="prop-date">发布日期: {row['date']}</div>
                     </div>
                 """, unsafe_allow_html=True)
-                if st.button("View Details", key=f"btn_{idx}", use_container_width=True):
+                if st.button("View Details", key=f"v_{idx}", use_container_width=True):
                     show_details(row)
 except:
-    st.info("Properties Loading...")
+    st.info("Loading properties...")
