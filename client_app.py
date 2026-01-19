@@ -161,17 +161,44 @@ st.markdown("""
     display: none !important;
     }
 
-/* 2. 隐藏底部所有可能存在的 Streamlit 标签 */
-footer {visibility: hidden !important;}
-[data-testid="stFooter"] {display: none !important;}
+    /* 1. 强制溢出屏蔽：从根源上切断任何超出页面的组件显示 */
+    .stApp {
+        overflow: hidden !important;
+    }
 
-/* 3. 彻底清除顶部 header（包含 GitHub 和菜单） */
-[data-testid="stHeader"] {display: none !important;}
-header {visibility: hidden !important;}
+    /* 2. 深度清理 Header 和 Footer */
+    [data-testid="stHeader"], 
+    header, 
+    footer, 
+    [data-testid="stFooter"] {
+        display: none !important;
+        height: 0px !important;
+        max-height: 0px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+    }
 
-/* 4. 移除右下角的额外操作按钮（针对移动端优化） */
-.stApp [data-testid="stToolbar"] {
-    display: none !important;
+    /* 3. 手机端右下角三个点菜单、Manage App、Deploy 全面封杀 */
+    [data-testid="stStatusWidget"],
+    [data-testid="stToolbar"],
+    [data-testid="stManageAppButton"],
+    #viewerBadge,
+    .stAppDeployButton,
+    button[kind="headerNoPadding"],
+    div[class*="viewerBadge"],
+    div[class*="StyledStatusWidget"] {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
+    /* 4. 针对手机端交互栏的强制补丁 */
+    div[class*="stAppViewMain"] {
+        margin-top: -50px !important; /* 向上顶出屏幕范围 */
     }
     
     /* 彻底隐藏右上角的 GitHub 图标、Deploy 按钮和三道杠菜单 */
