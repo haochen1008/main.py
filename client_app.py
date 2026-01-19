@@ -68,11 +68,18 @@ if os.path.exists(logo_file):
     """, unsafe_allow_html=True)
 
 # --- 5. 获取数据 ---
+# 在 client_app.py 的获取数据部分
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=0)
     df = df.dropna(subset=['title', 'poster-link'])
+    
+    # 新增：按日期倒序排列，让新房子置顶
+    df['date'] = pd.to_datetime(df['date'], errors='coerce') # 转为日期格式
+    df = df.sort_values(by='date', ascending=False) # 倒序排
+    df['date'] = df['date'].dt.strftime('%Y-%m-%d') # 再转回字符串显示
 except Exception:
+    # ... 原有代码 ...
     st.info("🏠 正在为您加载最新房源...")
     st.stop()
 
