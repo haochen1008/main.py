@@ -9,7 +9,6 @@ import base64
 st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
 st.markdown("""
-iframe[title="streamlitApp"] { height: 100vh !important; margin-bottom: -50px !important; }
     <style>
     /* 1. 修复筛选房源标题颜色：强制改为白色 */
 /* 1. 这里的背景色换成最稳妥的深灰色 */
@@ -212,6 +211,7 @@ header {visibility: hidden;}
 [data-testid="stStatusWidget"] {display: none !important;}
 [data-testid="stToolbar"] {display: none !important;}
     </style>
+    iframe[title="streamlitApp"] { height: 100vh !important; margin-bottom: -50px !important; }
 """, unsafe_allow_html=True)
 
 # --- 2. 详情弹窗 (顺序：微信->WhatsApp->海报->信息->描述) ---
