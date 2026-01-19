@@ -10,29 +10,47 @@ st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
 st.markdown("""
     <style>
-    /* 修复筛选器标题颜色，确保在深色背景下可见 */
+    /* 1. 修复筛选房源标题颜色：强制改为白色 */
     .st-expanderHeader p {
-        color: white !important;
-        font-weight: bold !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
         font-size: 16px !important;
     }
     
-    /* 修复筛选器内部标签颜色 (Region, Rooms, Max Price) */
-    .st-emotion-cache-16ids99 p, .stMultiSelect label, .stSlider label {
-        color: #e0e0e0 !important;
-    }
-
-    /* 修复下拉菜单选项的文字颜色 */
-    div[data-baseweb="select"] div {
-        color: #1a1c23 !important; /* 下拉列表文字保持深色以便在白色背景上阅读 */
-    }
-
-    /* 让筛选器展开后的容器背景稍微亮一点，增加对比度 */
-    .st-expanderContent {
+    /* 2. 修复温馨提示框：去掉突兀的鲜黄色，改为深色半透明 */
+    div[data-testid="stNotification"] {
         background-color: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 0 0 12px 12px !important;
-        padding: 20px !important;
+        color: #bfa064 !important;
+        border: 1px solid rgba(191, 160, 100, 0.3) !important;
+        border-radius: 10px !important;
     }
+
+    /* 3. 修复筛选器内部的标签文字（Region, Rooms等） */
+    .stMultiSelect label, .stSlider label, .stMarkdown p {
+        color: #d1d1d1 !important;
+    }
+
+    /* 4. 优化房源卡片下方的信息间距，解决拥挤问题 */
+    .property-info-container {
+        padding: 20px 15px !important;
+        background: #ffffff;
+        border-radius: 0 0 15px 15px;
+    }
+
+    /* 5. 保持精选标签的高亮 */
+    .featured-badge {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: linear-gradient(45deg, #ff4b4b, #ff7675);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        z-index: 10;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    
     /* 全局背景与字体 */
     .stApp { background-color: #fcfcfc; }
     
@@ -160,7 +178,7 @@ try:
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
 
     # --- TAB 1: 房源展示 ---
-   with tabs[0]:
+     with tabs[0]:
         st.warning("💡 更多伦敦优质房源...") # 缩进 8 个空格
         # 筛选器部分
         with st.expander("🔍 筛选房源 (Filter Options)"):
