@@ -56,11 +56,19 @@ def create_poster(files, title_text):
         st.error(f"海报生成失败: {e}")
         return None
 
-# --- 3. 核心函数：DeepSeek AI 提取 ---
+# --- 3. 核心函数：DeepSeek AI 提取 (提示词已优化) ---
 def call_ai_summary(raw_text):
     try:
         headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}", "Content-Type": "application/json"}
-        prompt = f"请将以下伦敦房源英文描述翻译并精简成中文要点，使用✔符号开头，包含租金、交通、周边、装修亮点等。描述如下：\n{raw_text}"
+        # 优化后的 Prompt：明确要求保留可用日期，剔除杂项
+        prompt = (
+            "你是一个专业的伦敦房产经纪助手。请将以下房源描述翻译并精简成中文要点：\n"
+            "1. 必须包含 'Available date' (起租日期)。\n"
+            "2. 使用✔符号开头，列出交通、周边生活、装修亮点。\n"
+            "3. 严格禁止包含以下内容：Deposit (押金)、Min. Tenancy (租期)、Let type (租赁类型)、Long term/Short term。\n"
+            "4. 语言要高级且吸引人。\n\n"
+            f"原始描述如下：\n{raw_text}"
+        )
         data = {
             "model": "deepseek-chat",
             "messages": [{"role": "user", "content": prompt}],
