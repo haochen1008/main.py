@@ -4,6 +4,33 @@ import pandas as pd
 import urllib.parse
 import base64
 
+st.markdown("""
+    <style>
+        /* 1. 强力隐藏右下角和顶部 */
+        header, footer, .stAppDeployButton, [data-testid="stHeader"], [data-testid="stFooter"], #MainMenu, [data-testid="stManageAppButton"], #viewerBadge {
+            display: none !important;
+            visibility: hidden !important;
+        }
+
+        /* 2. 修复筛选器：白底黑字，确保绝对看得见 */
+        .st-expander {
+            background-color: white !important;
+            border: 1px solid #bfa064 !important;
+            border-radius: 10px !important;
+        }
+        .st-expanderHeader p {
+            color: #1a1c23 !important;
+            font-weight: bold !important;
+        }
+
+        /* 3. 居中排版样式 */
+        .prop-center { text-align: center; padding: 10px 0; }
+        .prop-title { font-weight: bold; color: #1a1c23; font-size: 1.1em; margin-bottom: 5px; }
+        .prop-price { color: #bfa064; font-size: 1.2em; font-weight: bold; margin-bottom: 5px; }
+        .prop-tags { color: #666; font-size: 0.9em; margin-bottom: 5px; }
+        .prop-date { color: #999; font-size: 0.8em; }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- 1. 页面配置与 CSS 深度优化 ---
 st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
