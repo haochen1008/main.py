@@ -4,6 +4,23 @@ import pandas as pd
 import urllib.parse
 import base64
 
+/* 导航标签美化 */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 20px;
+    justify-content: center;
+}
+.stTabs [data-baseweb="tab"] {
+    height: 50px;
+    background-color: transparent !important;
+    border: none !important;
+    color: #888 !important;
+    font-weight: 600;
+}
+.stTabs [aria-selected="true"] {
+    color: #bfa064 !important;
+    border-bottom: 2px solid #bfa064 !important;
+}
+
 # --- 1. 页面配置与 CSS 深度优化 ---
 st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
