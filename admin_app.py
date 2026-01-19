@@ -1,180 +1,132 @@
-import streamlit as st
-import pandas as pd
-from streamlit_gsheets import GSheetsConnection
-import requests
-from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
-from datetime import datetime
-import json # 用于解析 ImgBB 的响应
+# --- 4. 详情弹窗 (微信改为一键复制模式，保持 WhatsApp 和 拨号) ---
+@st.dialog("房源详情")
+def show_details(item):
+    st.image(item['poster-link'], use_container_width=True)
+    
+    st.markdown(f"📅 **起租日期/发布**: {item['date']}")
+    st.markdown("### 📋 房源亮点")
+    st.write(item['description'])
+    st.divider()
+    
+    # 联系人配置
+    wechat_id = "HaoHarbour_UK"
+    phone_num = "447000000000" # 确保此处为您接听咨询的真实号码
+    
+    st.markdown("💬 **立即咨询 Hao Harbour**")
+    
+    # 1. 微信区域 (置顶并强化复制体验)
+    with st.container(border=True):
+        st.markdown(f"✨ **微信咨询：点击下方 ID 即可复制**")
+        # st.code 在手机端点一下通常会自动全选，非常方便用户复制
+        st.code(wechat_id, language=None)
+        st.caption("提示：复制后打开微信，在搜索框粘贴即可添加好友。")
 
-# --- ImgBB API 配置 (请替换为你的真实 Key) ---
-IMGBB_API_KEY = st.secrets["IMGBB_API_KEY"] # 推荐使用 Streamlit Secrets 管理
+    # 2. WhatsApp & 拨号 (保持并排)
+    c1, c2 = st.columns(2)
+    with c1:
+        wa_msg = f"您好，我想咨询房源：{item['title']} (租金 £{item['price']})"
+        wa_url = f"https://wa.me/{phone_num}?text={wa_msg}"
+        st.markdown(f'''
+            <a href="{wa_url}" target="_blank" style="text-decoration:none;">
+                <button style="width:100%; height:45px; border-radius:10px; border:none; background:#25D366; color:white; font-weight:bold; cursor:pointer;">
+                    WhatsApp 咨询
+                </button>
+            </a>
+        ''', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'''
+            <a href="tel:+{phone_num}" style="text-decoration:none;">
+                <button style="width:100%; height:45px; border-radius:10px; border:1px solid #25D366; background:white; color:#25D366; font-weight:bold; cursor:pointer;">
+                    📞 拨打热线
+                </button>
+            </a>
+        ''', unsafe_allow_html=True)
 
-# --- 1. Streamlit 页面配置 ---
-st.set_page_config(page_title="Hao Harbour Admin", layout="centered")
-st.title("🏡 Hao Harbour 房源管理")
-st.subheader("🤖 AI 智能提取 & 自动发布")
+    st.divider()
 
-# --- 2. GSheets 连接 ---
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-# --- 3. 核心功能：图片加水印函数 ---
-def apply_watermark(image_bytes):
+    # 3. 分享与海报下载 (已包含 requests 修复)
+    st.markdown("🔗 **分享此房源**")
     try:
-        img = Image.open(BytesIO(image_bytes)).convert("RGBA")
-        
-        txt = Image.new("RGBA", img.size, (255, 255, 255, 0))
-        draw = ImageDraw.Draw(txt)
-        
-        font_size = int(img.size[0] / 12)
-        try:
-            # 优先使用一个常见的无衬线字体，提高兼容性
-            font = ImageFont.truetype("arial.ttf", font_size) 
-        except IOError:
-            font = ImageFont.load_default() # 如果 'arial.ttf' 不存在，使用默认字体
-        
-        text = "Hao Harbour"
-        bbox = draw.textbbox((0, 0), text, font=font)
-        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        x = (img.size[0] - w) / 2
-        y = (img.size[1] - h) / 2
-        
-        draw.text((x, y), text, fill=(255, 255, 255, 100), font=font)
-        
-        combined = Image.alpha_composite(img, txt).convert("RGB")
-        
-        # 将带水印图片保存到 BytesIO 对象，以便上传
-        img_byte_arr = BytesIO()
-        combined.save(img_byte_arr, format='JPEG', quality=85) # 保存为 JPEG，减少文件大小
-        img_byte_arr.seek(0) # 将指针移到文件开头
-        return img_byte_arr.getvalue()
-    except Exception as e:
-        st.error(f"图片加水印失败: {e}")
-        return None
+        img_data = requests.get(item['poster-link']).content
+        st.download_button(
+            label="🖼️ 下载精美海报 (可发朋友圈/转发)",
+            data=img_data,
+            file_name=f"HaoHarbour_{item['title']}.jpg",
+            mime="image/jpeg",
+            use_container_width=True
+        )
+    except:
+        st.write("海报预览中...")
 
-# --- 4. 核心功能：上传图片到 ImgBB ---
-def upload_to_imgbb(image_bytes):
-    if not IMGBB_API_KEY:
-        st.error("ImgBB API Key 未配置。请在 Streamlit Secrets 中设置 'IMGBB_API_KEY'。")
-        return None
-        
-    url = "https://api.imgbb.com/1/upload"
-    files = {'image': image_bytes}
-    data = {'key': IMGBB_API_KEY}
-    
-    try:
-        response = requests.post(url, files=files, data=data, timeout=30)
-        response.raise_for_status() # 如果请求失败，抛出异常
-        result = json.loads(response.text)
-        
-        if result['status'] == 200:
-            return result['data']['url']
-        else:
-            st.error(f"ImgBB 上传失败: {result.get('error', {}).get('message', '未知错误')}")
-            return None
-    except requests.exceptions.RequestException as e:
-        st.error(f"网络请求错误或 ImgBB API 访问失败: {e}")
-        return None
-    except json.JSONDecodeError:
-        st.error("ImgBB 返回了无效的 JSON 响应。")
-        return None
+    # 文字分享
+    share_msg = f"Hao Harbour 房源推荐：\n🏠 {item['title']}\n💰 £{int(item['price']):,}/pcm\n✨ {item['description']}\n💬 微信: {wechat_id}"
+    st.code(share_msg, language=None)
 
-# --- 5. AI 提取描述函数 (这部分保持你原来的代码) ---
-# 假设你有一个名为 call_ai_summary 的函数
-# 示例：
-def call_ai_summary(raw_text):
-    # 这里应该替换为你的真实 AI API 调用
-    # 例如：通过 OpenAI, Coze, Gemini 等获取总结
-    if "卧室" in raw_text and "浴室" in raw_text:
-        return f"这是一套精美的房源，AI总结：{raw_text[:100]}..."
-    else:
-        return f"AI总结：{raw_text[:100]}..."
-    # return "AI_PROCESSED_DESCRIPTION_HERE" 
+# --- 5. 渲染 Header ---
+logo_file = "logo.png" if os.path.exists("logo.png") else "logo.jpg"
+if os.path.exists(logo_file):
+    with open(logo_file, "rb") as f:
+        data = base64.b64encode(f.read()).decode()
+    st.markdown(f"""
+        <div class="custom-header">
+            <img src="data:image/png;base64,{data}" class="logo-img">
+            <div class="header-text">
+                <p class="header-title">HAO HARBOUR</p>
+                <p class="header-subtitle">EXCLUSIVE LONDON LIVING</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-# --- 6. 房源录入表单 ---
-st.header("📝 录入新房源")
-
-with st.form("new_listing_form"):
-    title = st.text_input("房源标题", "Modern 2-bed flat near London Bridge")
-    region = st.text_input("区域", "Bermondsey")
-    rooms = st.text_input("房型", "2 Beds, 2 Baths")
-    price = st.number_input("月租金 (£)", min_value=1000, value=3000, step=100)
-    
-    # 【核心改动】: 文件上传器
-    uploaded_file = st.file_uploader("上传房源封面图片 (JPG/PNG)", type=["jpg", "jpeg", "png"])
-    
-    raw_description = st.text_area("房源原始描述 (AI将从这里提取亮点)", 
-                                   "A stunning two-bedroom, two-bathroom apartment located in the heart of London, "
-                                   "just a 5-minute walk from London Bridge station. Features include a spacious "
-                                   "living area, fully fitted kitchen, and panoramic city views. Available for rent now.")
-    
-    submitted = st.form_submit_button("🚀 执行智能提取并发布")
-
-    if submitted:
-        if not uploaded_file:
-            st.error("请上传房源封面图片。")
-            st.stop()
-            
-        with st.spinner("正在处理图片、上传并提取描述..."):
-            # 1. 读取上传的图片文件
-            original_image_bytes = uploaded_file.getvalue()
-            
-            # 2. 加水印
-            watermarked_image_bytes = apply_watermark(original_image_bytes)
-            
-            if watermarked_image_bytes:
-                # 3. 上传到 ImgBB
-                poster_link = upload_to_imgbb(watermarked_image_bytes)
-                
-                if poster_link:
-                    st.success(f"图片已成功上传至: {poster_link}")
-                    st.image(watermarked_image_bytes, caption="带水印的封面预览", use_container_width=True)
-                    
-                    # 4. AI 提取描述
-                    processed_desc = call_ai_summary(raw_description)
-                    st.success("AI 描述已提取。")
-                    
-                    # 5. 准备数据并写入 Google Sheets
-                    new_data = pd.DataFrame([{
-                        "title": title,
-                        "region": region,
-                        "rooms": rooms,
-                        "price": price,
-                        "date": datetime.now().strftime("%Y-%m-%d"),
-                        "description": processed_desc,
-                        "poster-link": poster_link # 这里存储的是带水印的图片链接
-                    }])
-                    
-                    try:
-                        # 尝试读取现有数据
-                        existing_df = conn.read(worksheet="Sheet1", usecols=list(new_data.columns), ttl=0)
-                        # 合并新数据
-                        updated_df = pd.concat([new_data, existing_df], ignore_index=True)
-                        # 写入 Google Sheets
-                        conn.update(worksheet="Sheet1", data=updated_df)
-                        st.success("🎉 房源已成功发布到 Google Sheets！")
-                    except Exception as e:
-                        st.error(f"写入 Google Sheets 失败: {e}")
-                else:
-                    st.error("图片上传 ImgBB 失败。")
-            else:
-                st.error("水印处理失败，无法继续。")
-    else:
-        st.info("请填写所有房源信息并上传图片。")
-
-# --- 7. 管理现有房源 (示例，保持你原先的查看、编辑、删除逻辑) ---
-st.header("📋 管理现有房源")
+# --- 6. 获取数据 ---
 try:
-    existing_data = conn.read(worksheet="Sheet1", ttl=0)
-    st.dataframe(existing_data, use_container_width=True)
-    
-    # 示例: 如果你有编辑/删除按钮，它们也在这里。
-    # 例如：
-    # if st.button("刷新数据"):
-    #     st.rerun()
-    
-except Exception as e:
-    st.warning(f"无法加载现有房源数据: {e}")
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    df = conn.read(worksheet="Sheet1", ttl=0)
+    df = df.dropna(subset=['title', 'poster-link'])
+    df['date_dt'] = pd.to_datetime(df['date'], errors='coerce')
+    df = df.sort_values(by='date_dt', ascending=False).drop(columns=['date_dt'])
+except Exception:
+    st.info("🏠 正在为您加载最新房源...")
+    st.stop()
+
+# --- 7. 手机端筛选器 ---
+with st.expander("🔍 筛选房源 / 收藏夹", expanded=False):
+    t_a, t_b = st.tabs(["全部筛选", "❤️ 我的收藏"])
+    with t_a:
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c1: f_reg = st.multiselect("区域", options=df['region'].unique().tolist())
+        with c2: f_rm = st.multiselect("房型", options=df['rooms'].unique().tolist())
+        with c3:
+            df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
+            f_price = st.slider("最高预算", 0, int(df['price'].max())+500, int(df['price'].max()))
+    with t_b:
+        show_fav = st.checkbox("仅看我收藏的")
+
+filtered = df.copy()
+if f_reg: filtered = filtered[filtered['region'].isin(f_reg)]
+if f_rm: filtered = filtered[filtered['rooms'].isin(f_rm)]
+filtered = filtered[filtered['price'] <= f_price]
+if 'show_fav' in locals() and show_fav: filtered = filtered[filtered['title'].isin(st.session_state.favorites)]
+
+# --- 8. 房源展示 ---
+st.markdown(f"#### 📍 发现 {len(filtered)} 套精品房源")
+if not filtered.empty:
+    m_cols = st.columns(3)
+    for i, (idx, row) in enumerate(filtered.iterrows()):
+        with m_cols[i % 3]:
+            with st.container(border=True):
+                st.image(row['poster-link'], use_container_width=True)
+                tc1, tc2 = st.columns([4, 1])
+                with tc1: st.markdown(f"**{row['title']}**")
+                with tc2:
+                    fav_icon = "❤️" if row['title'] in st.session_state.favorites else "🤍"
+                    st.button(fav_icon, key=f"f_{idx}", on_click=toggle_fav, args=(row['title'],))
+                st.caption(f"📍 {row['region']} | 🛏️ {row['rooms']}")
+                st.markdown(f"""<div class="meta-row"><span class="date-label">📅 {row['date']}</span>
+                    <span style="color:#ff4b4b; font-weight:bold; font-size:18px;">£{int(row['price']):,}</span></div>""", unsafe_allow_html=True)
+                if st.button("查看详情 & 联系", key=f"b_{idx}", use_container_width=True):
+                    show_details(row)
+else:
+    st.warning("暂无房源。")
 
 st.divider()
 st.caption("© 2026 Hao Harbour Properties.")
