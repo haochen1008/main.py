@@ -11,7 +11,6 @@ from datetime import datetime
 # --- 1. 页面配置 ---
 st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
 
-# 配置 Cloudinary
 cloudinary.config(
     cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
     api_key = st.secrets["CLOUDINARY_API_KEY"],
@@ -24,9 +23,7 @@ def create_poster(files, title_text):
     try:
         canvas = Image.new('RGB', (800, 1200), (255, 255, 255))
         draw = ImageDraw.Draw(canvas)
-        
         try:
-            # 尝试加载中文字体，若失败则用默认
             font_title = ImageFont.truetype("simhei.ttf", 45)
             font_footer = ImageFont.truetype("simhei.ttf", 25)
             font_watermark = ImageFont.truetype("simhei.ttf", 80)
@@ -35,7 +32,6 @@ def create_poster(files, title_text):
             font_footer = ImageFont.load_default()
             font_watermark = ImageFont.load_default()
 
-        # 处理前 6 张图片
         for i, f in enumerate(files[:6]):
             img = Image.open(f).convert('RGB')
             img = img.resize((390, 300), Image.Resampling.LANCZOS)
@@ -43,7 +39,7 @@ def create_poster(files, title_text):
             y = 5 + (i // 2) * 305
             canvas.paste(img, (x, y))
 
-        # 绘制水印
+        # 绘制半透明水印
         watermark_layer = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
         wm_draw = ImageDraw.Draw(watermark_layer)
         wm_text = "Hao Harbour"
@@ -53,7 +49,6 @@ def create_poster(files, title_text):
         watermark_layer = watermark_layer.rotate(30, expand=False)
         canvas.paste(watermark_layer, (0, 0), watermark_layer)
 
-        # 底部信息
         draw.text((40, 950), title_text, font=font_title, fill=(0, 0, 0))
         draw.text((40, 1030), "Hao Harbour | London Excellence", font=font_footer, fill=(180, 160, 100))
         draw.line([(40, 1010), (760, 1010)], fill=(200, 200, 200), width=2)
@@ -62,129 +57,96 @@ def create_poster(files, title_text):
         st.error(f"海报生成失败: {e}")
         return None
 
-# --- 3. DeepSeek AI 提取函数 ---
+# --- 3. DeepSeek AI 提取 ---
 def call_ai_summary(raw_text):
     try:
         headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}", "Content-Type": "application/json"}
         prompt = (
             "你是一个专业的伦敦房产经纪助手。请将以下房源描述翻译并精简成中文要点：\n"
-            "1. 必须包含 'Available date'。\n2. 使用✔符号开头。\n3. 禁止包含押金、租期要求等。\n\n"
+            "1. 必须包含 'Available date'。\n2. 使用✔符号开头。\n3. 禁止包含押金等信息。\n\n"
             f"原始描述如下：\n{raw_text}"
         )
         data = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.7}
         response = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=data, timeout=30)
         return response.json()['choices'][0]['message']['content']
     except Exception as e:
-        return f"AI 提取遇到问题: {e}"
+        return f"AI 提取失败: {e}"
 
-# --- 4. 主界面逻辑 ---
-if "ai_desc" not in st.session_state:
-    st.session_state.ai_desc = ""
+# --- 4. 主界面布局 ---
+if "ai_desc" not in st.session_state: st.session_state.ai_desc = ""
 
-tab1, tab2 = st.tabs(["🆕 发布新房源", "📊 数据看板 & 管理"])
+tab1, tab2 = st.tabs(["🆕 发布新房源", "📊 管理与统计"])
 
-# --- TAB 1: 发布房源 ---
 with tab1:
-    col_left, col_right = st.columns([1, 1])
-    with col_left:
-        st.subheader("1. 填写信息")
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.subheader("1. 填写房源信息")
         title = st.text_input("房源名称")
         region = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"])
         rooms = st.selectbox("房型", ["1房", "2房", "3房", "4房+"])
         price = st.number_input("月租 (£/pcm)", value=3000, step=100)
-        raw_desc = st.text_area("粘贴英文原始描述", height=200)
-        if st.button("✨ 执行 AI 提取"):
+        raw_desc = st.text_area("粘贴英文描述", height=200)
+        if st.button("✨ 执行 AI 智能提取"):
             if raw_desc:
-                with st.spinner("AI 正在思考..."):
+                with st.spinner("AI 提取中..."):
                     st.session_state.ai_desc = call_ai_summary(raw_desc)
-            else:
-                st.warning("请先输入英文描述")
-
-    with col_right:
+    with col2:
         st.subheader("2. 预览与发布")
-        final_desc = st.text_area("最终描述 (可手动修改)", value=st.session_state.ai_desc, height=200)
+        final_desc = st.text_area("最终描述", value=st.session_state.ai_desc, height=200)
         photos = st.file_uploader("上传照片", accept_multiple_files=True)
-        if st.button("🚀 确认发布并同步", type="primary"):
+        if st.button("🚀 确认发布", type="primary"):
             if not title or not photos:
-                st.error("标题和图片不能为空")
+                st.error("请确保标题和图片已上传")
             else:
-                with st.spinner("处理海报中..."):
+                with st.spinner("处理中..."):
                     poster_img = create_poster(photos, title)
                     if poster_img:
-                        buf = io.BytesIO()
-                        poster_img.save(buf, format='JPEG')
+                        buf = io.BytesIO(); poster_img.save(buf, format='JPEG')
                         upload_res = cloudinary.uploader.upload(buf.getvalue())
                         p_url = upload_res.get("secure_url")
-                        
                         try:
                             conn = st.connection("gsheets", type=GSheetsConnection)
                             df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-                            new_row = {
+                            new_data = {
                                 "date": datetime.now().strftime("%Y-%m-%d"),
-                                "title": title,
-                                "region": region,
-                                "rooms": rooms,
-                                "price": price,
-                                "poster-link": p_url,
-                                "description": final_desc,
-                                "views": 0 # 初始化浏览量
+                                "title": title, "region": region, "rooms": rooms, "price": price,
+                                "poster-link": p_url, "description": final_desc,
+                                "views": 0, "is_featured": False
                             }
-                            updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                            updated_df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
                             conn.update(worksheet="Sheet1", data=updated_df)
-                            st.success("✅ 发布成功！")
-                            st.image(p_url, width=300)
+                            st.success(f"✅ 《{title}》已成功追加！")
                         except Exception as e:
                             st.error(f"同步失败: {e}")
 
-# --- 在 admin_app.py 的 Tab 2 部分进行以下更新 ---
-
 with tab2:
-    st.subheader("📈 房源热度统计 & 管理")
+    st.subheader("📋 房源热度统计")
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         manage_df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-        
         if not manage_df.empty:
-            # 基础统计指标
-            m1, m2 = st.columns(2)
-            m1.metric("网站总曝光", int(manage_df['views'].sum()) if 'views' in manage_df.columns else 0)
-            m2.metric("在线房源总数", len(manage_df))
+            st.metric("网站总点击量", int(manage_df['views'].sum()) if 'views' in manage_df.columns else 0)
             
-            st.divider()
-
-            # --- 新增功能区：刷新与加精 ---
-            st.subheader("⚙️ 房源快速操作")
-            target_title = st.selectbox("选择目标房源", options=manage_df['title'].tolist())
+            st.write("### ⚙️ 管理操作")
+            target = st.selectbox("选择目标房源", options=manage_df['title'].tolist())
+            c1, c2, c3 = st.columns(3)
             
-            col_ref, col_feat, col_del = st.columns(3)
-            
-            # 功能 1: 刷新日期 (Refresh)
-            if col_ref.button("🔄 刷新日期 (置顶)", use_container_width=True):
-                manage_df.loc[manage_df['title'] == target_title, 'date'] = datetime.now().strftime("%Y-%m-%d")
-                # 重新排序，让日期最新的在最上面
-                manage_df = manage_df.sort_values(by='date', ascending=False)
+            if c1.button("🔄 Refresh (刷新置顶)", use_container_width=True):
+                manage_df.loc[manage_df['title'] == target, 'date'] = datetime.now().strftime("%Y-%m-%d")
                 conn.update(worksheet="Sheet1", data=manage_df)
-                st.success(f"已将 《{target_title}》 刷新至今日日期！")
                 st.rerun()
 
-            # 功能 2: 设为精选 (Feature)
-            current_status = manage_df.loc[manage_df['title'] == target_title, 'is_featured'].values[0] if 'is_featured' in manage_df.columns else False
-            btn_label = "⭐ 取消精选" if current_status else "🌟 设为精选"
-            if col_feat.button(btn_label, use_container_width=True):
-                if 'is_featured' not in manage_df.columns:
-                    manage_df['is_featured'] = False
-                manage_df.loc[manage_df['title'] == target_title, 'is_featured'] = not current_status
+            is_feat = manage_df.loc[manage_df['title'] == target, 'is_featured'].values[0] if 'is_featured' in manage_df.columns else False
+            if c2.button("🌟/⭐ 切换精选状态", use_container_width=True):
+                manage_df.loc[manage_df['title'] == target, 'is_featured'] = not is_feat
                 conn.update(worksheet="Sheet1", data=manage_df)
-                st.success(f"已更新 《{target_title}》 的精选状态！")
                 st.rerun()
 
-            # 原有删除功能
-            if col_del.button("🗑️ 确认下架", use_container_width=True, type="secondary"):
-                new_df = manage_df[manage_df['title'] != target_title]
+            if c3.button("🗑️ 确认删除", use_container_width=True):
+                new_df = manage_df[manage_df['title'] != target]
                 conn.update(worksheet="Sheet1", data=new_df)
                 st.rerun()
 
-            st.write("### 详细数据表")
             st.dataframe(manage_df, use_container_width=True)
-    except Exception as e:
-        st.error(f"加载管理页面失败: {e}")
+        else: st.info("暂无数据")
+    except Exception as e: st.error(f"数据加载失败: {e}")
