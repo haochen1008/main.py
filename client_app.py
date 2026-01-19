@@ -10,7 +10,6 @@ st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
 st.markdown("""
     <style>
-<style>
     /* 全局背景与字体 */
     .stApp { background-color: #fcfcfc; }
     
@@ -79,7 +78,6 @@ st.markdown("""
         z-index: 10;
         box-shadow: 0 4px 10px rgba(255, 75, 75, 0.3);
     }
-</style>
     </style>
 """, unsafe_allow_html=True)
 
@@ -180,43 +178,66 @@ try:
                 st.markdown('</div>', unsafe_allow_html=True)
 
     # --- TAB 2: 我们的服务 (Our Services) ---
+   # --- TAB 2: 我们的服务 ---
     with tabs[1]:
-        st.markdown("### 🛠️ 全生命周期管家式关怀")
-        # 模块 1 & 2
-        s_c1, s_c2 = st.columns(2)
-        with s_c1:
+        st.markdown("<h2 style='text-align:center; color:#1a1c23;'>Bespoke Concierge Services</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; color:#888;'>全生命周期管家式关怀，让海外置业更简单</p>", unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
             st.markdown("""
-            **精准定向选址 (Bespoke Property Search)**
-            * **覆盖城市**：深度覆盖伦敦、曼彻斯特、伯明翰等核心求学区域。
-            * **需求画像**：根据校区、预算、安全系数及周边交通进行大数据筛选。
-            """)
+                <div class="service-card">
+                    <div class="service-title">📍 模块 1：精准定向选址</div>
+                    <div class="service-text">
+                        不仅是找房子，更是匹配生活方式。深度覆盖<b>伦敦、曼城、伯明翰</b>。
+                        提供高清视频带看或实地考察报告，全方位展示真实状况，杜绝“买家秀”骗局。
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-title">🔑 模块 3：极速入住管家</div>
+                    <div class="service-text">
+                        协助开通水、电、煤气及高性价比网络。指导申请 <b>Council Tax 免税证明</b>，
+                        入住当天协助 Inventory 拍照存证，确保退房时押金全额退还。
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
             st.markdown("""
-            **账单管家 (Utility Setting-up Support)**
-            * **Utilities 托管**：协助开通水、电、煤气及高性价比宽带网络运营商。
-            * **政务处理**：指导申请 Council Tax 免税证明，节省高额开支。
-            """)
-        with s_c2:
-            st.markdown("""
-            **文书合规与风控 (Contract & Compliance)**
-            * **租房审查协助**：针对留学生无英国担保人痛点提供专业指导。
-            * **合同审计**：深度解读 Tenancy Agreement，确保押金受 TDS 保护。
-            """)
-            st.markdown("""
-            **轻松退房 (Easy Check Out)**
-            * **设施检查**：协助查看验房报告，确保退房时押金全额退还。
-            * **清洁安排**：协助安排深度退租清洁，长期合作，靠谱实惠。
-            """)
+                <div class="service-card">
+                    <div class="service-title">⚖️ 模块 2：文书合规与风控</div>
+                    <div class="service-text">
+                        利用 <b>JLL 标准</b> 的专业知识保护您的利益。协助 Reference 审查，
+                        深度审计租约，确保押金受 TDS 保护，并凭借经验为您争取最优惠租金。
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-title">🌟 模块 4：增值生活支持</div>
+                    <div class="service-text">
+                        服务不因租约签订而终止。入住期间提供漏水、设备维修等纠纷的咨询，
+                        并针对下一学年的续租或迁徙提供前瞻性建议。
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
 
-    # --- TAB 3: 关于我们 (About Us) ---
+    # --- TAB 3: 关于我们 ---
     with tabs[2]:
-        st.markdown("### 👤 为什么选择 Hao Harbour？")
-        st.info("""
-        * **【名校精英视角】** 创始人拥有 **UCL（伦敦大学学院）本硕学历**，以校友身份深切理解留学生对学区安全及环境的严苛需求。
-        * **【行业巨头背景】** 曾任职于全球房产咨询五大行之一，财富500强公司的 **JLL（仲量联行）**，引入世界级房地产专业标准与合规流程。
-        * **【十载英伦深耕】** 扎根英国生活 **10余年**，提供比导航更精准的社区治安、配套及族裔分布解析。
-        * **【官方战略合作】** 与众多本土管理公司建立长期稳固合作，掌握大量“独家房源”或优先配额。
-        * **【金牌服务口碑】** 成功协助数百位国际留学生完成从“纸上申请”到“温馨入住”的完美过渡。
-        """)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("""
+            <div class="bio-box">
+                <div class="bio-tag">FOUNDER PROFILE</div>
+                <h2 style='margin:0; color:#bfa064;'>Hao Harbour 创始人</h2>
+                <p style='font-size:18px; opacity:0.9;'>UCL (伦敦大学学院) 本硕 | 前 JLL (仲量联行) 顾问</p>
+                <hr style='opacity:0.2; margin:20px 0;'>
+                <p style='line-height:1.8; font-size:15px;'>
+                    🌟 <b>名校精英视角</b>：以校友身份深切理解留学生对学区安全与通勤的严苛需求。<br>
+                    🏢 <b>行业巨头背景</b>：曾任职于五大行之一的 JLL，引入世界级房地产专业标准。<br>
+                    🇬🇧 <b>十载英伦深耕</b>：扎根英国 10 余年，提供比地图更精准的社区治安及族裔分布解析。<br>
+                    🤝 <b>官方战略合作</b>：与众多本土管理公司建立稳固合作，掌握大量不公开的“独家房源”。<br>
+                    🏆 <b>金牌服务口碑</b>：成功协助数百位留学生完成从申请到入住的完美过渡。
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
 
     # --- TAB 4: 联系方式 (Contact) ---
     with tabs[3]:
