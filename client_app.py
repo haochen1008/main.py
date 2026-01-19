@@ -174,28 +174,25 @@ try:
         s_c1, s_c2 = st.columns(2)
         with s_c1:
             st.markdown("""
-            **模块 1：精准定向选址 (Bespoke Property Search)**
+            **精准定向选址 (Bespoke Property Search)**
             * **覆盖城市**：深度覆盖伦敦、曼彻斯特、伯明翰等核心求学区域。
             * **需求画像**：根据校区、预算、安全系数及周边交通进行大数据筛选。
-            * **视频带看**：提供高清视频看房或实地考察报告，杜绝“买家秀”骗局。
             """)
             st.markdown("""
-            **模块 3：极速入住管家 (Home Setting-up Support)**
+            **账单管家 (Utility Setting-up Support)**
             * **Utilities 托管**：协助开通水、电、煤气及高性价比宽带网络运营商。
             * **政务处理**：指导申请 Council Tax 免税证明，节省高额开支。
-            * **设施检查**：入住当天协助拍照存证，确保退房时押金全额退还。
             """)
         with s_c2:
             st.markdown("""
-            **模块 2：文书合规与风控 (Contract & Compliance)**
+            **文书合规与风控 (Contract & Compliance)**
             * **租房审查协助**：针对留学生无英国担保人痛点提供专业指导。
             * **合同审计**：深度解读 Tenancy Agreement，确保押金受 TDS 保护。
-            * **议价谈判**：争取最优惠租金或最灵活租期条件。
             """)
             st.markdown("""
-            **模块 4：增值生活支持 (Ongoing Concierge)**
-            * **疑难杂症咨询**：入住期间设备损坏或纠纷提供法律咨询与支持。
-            * **升学续租指导**：针对下学年迁徙提供市场预测与优先留房建议。
+            **轻松退房 (Ongoing Concierge)**
+            * **设施检查**：协助查看验房报告，确保退房时押金全额退还。
+            * **清洁安排**：协助安排深度退租清洁，长期合作，靠谱实惠。
             """)
 
     # --- TAB 3: 关于我们 (About Us) ---
