@@ -87,7 +87,7 @@ def get_image_base64(path):
 
 try:
     # 尝试读取同级目录下的 logo.png
-    encoded_logo = get_image_base64("logo.png")
+    encoded_logo = get_image_base64("logo.jpg")
     st.markdown(f"""
         <div style="text-align: center;">
             <img src="data:image/png;base64,{encoded_logo}" width="120">
@@ -99,6 +99,25 @@ except:
 
 st.markdown("<p style='text-align: center; color: #bfa064; font-weight: bold; letter-spacing: 3px; font-size: 14px; margin-top:0;'>EXCLUSIVE LONDON LIVING</p>", unsafe_allow_html=True)
 
+# --- 在 Logo 和 筛选器(Expander) 之间插入这段话 ---
+
+st.markdown(f"""
+    <div style="
+        background-color: #fcf8e3; 
+        border: 1px solid #faebcc; 
+        color: #8a6d3b; 
+        padding: 15px; 
+        border-radius: 5px; 
+        text-align: center; 
+        margin: 10px 0 20px 0;
+        font-size: 15px;
+    ">
+        💡 <b>温馨提示：</b>由于房源数量众多，网站仅展示部分精选房源。<br>
+        如需了解更多伦敦优质房源，请添加微信：<b>HaoHarbour_UK</b> 咨询。
+    </div>
+""", unsafe_allow_html=True)
+
+# --- 接下来就是你原来的 st.expander("🔍 筛选房源...") 部分 ---
 # --- 4. 数据加载与折叠下拉筛选器 ---
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
