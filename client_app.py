@@ -1,79 +1,66 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-import requests
 import urllib.parse
 import base64
 
-# --- 1. 页面配置与 UI 修复 ---
+# --- 1. 强力排版修正 (针对移动端) ---
 st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
 st.markdown("""
     <style>
-    /* 彻底隐藏工具栏 */
-    #MainMenu, header, footer, .stAppDeployButton, [data-testid="stToolbar"] {visibility: hidden; display: none !important;}
-    
-    /* 背景与字体 */
-    .stApp {background-color: #0e1117;}
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
-    html, body, [class*="st-"] {font-family: 'Inter', sans-serif; color: #ffffff;}
-
-    /* 修复筛选栏文字重叠 */
+    /* 彻底清理重叠文字 */
+    .st-expanderHeader > div:first-child { display: none !important; } /* 移除那个出错的箭头图标 */
     .st-expanderHeader {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 8px !important;
-        line-height: 1.6 !important;
-    }
-    .st-expanderContent { border: none !important; }
-
-    /* 提示框美化 */
-    .hint-box {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(191, 160, 100, 0.3);
-        color: #bfa064;
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        margin: 20px 0;
-        font-size: 14px;
-        line-height: 1.6;
-    }
-
-    /* 房源卡片 */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #1a1c23;
-        border-radius: 15px !important;
-        transition: transform 0.3s ease;
-        padding: 0px !important;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-    }
-
-    /* 按钮 */
-    .stButton>button {
-        background: transparent !important;
-        color: #bfa064 !important;
+        background-color: #1a1c23 !important;
         border: 1px solid #bfa064 !important;
+        padding: 10px !important;
         border-radius: 8px !important;
-        font-weight: 600 !important;
+        color: #bfa064 !important;
+        font-size: 14px !important;
     }
+
+    /* 详情页描述框深度美化 (解决手机看不清的问题) */
+    code {
+        color: #ffffff !important; /* 强制白色文字 */
+        background-color: #262730 !important; /* 深色背景 */
+        padding: 15px !important;
+        font-size: 14px !important;
+        line-height: 1.6 !important;
+        border-radius: 10px !important;
+        display: block !important;
+        white-space: pre-wrap !important;
+        border-left: 3px solid #bfa064 !important;
+    }
+
+    /* 隐藏不必要的侧边栏和多余组件 */
+    #MainMenu, footer, .stAppDeployButton, [data-testid="stToolbar"] {visibility: hidden; display: none !important;}
     
-    /* 日期标签样式 */
-    .date-tag {
-        color: #888;
-        font-size: 12px;
-        margin-top: 5px;
+    /* 房源卡片手机端适配 */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: #1a1c23 !important;
+        border-radius: 12px !important;
+        margin-bottom: 20px !important;
+    }
+
+    /* 提示框 */
+    .hint-box {
+        background: rgba(191, 160, 100, 0.1);
+        border: 1px solid #bfa064;
+        color: #bfa064;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 15px;
+        font-size: 13px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 详情弹窗 (找回丢失的日期) ---
+# --- 2. 详情弹窗 (恢复地图与高对比度) ---
 @st.dialog("Property Details")
 def show_details(item):
-    # 浏览量统计
+    # 统计点击量
     try:
         conn_v = st.connection("gsheets", type=GSheetsConnection)
         df_v = conn_v.read(worksheet="Sheet1", ttl=0)
@@ -82,33 +69,30 @@ def show_details(item):
     except: pass
 
     st.image(item['poster-link'], use_container_width=True)
-    st.write(f"### {item['title']}")
+    st.markdown(f"<h3 style='margin-bottom:0;'>{item['title']}</h3>", unsafe_allow_html=True)
     
-    # 布局：价格与发布日期
-    col_info1, col_info2 = st.columns([2, 1])
-    with col_info1:
-        st.markdown(f"<h2 style='color:#bfa064; margin:0;'>£{item['price']} <span style='font-size:14px; color:#888;'>/pcm</span></h2>", unsafe_allow_html=True)
-    with col_info2:
-        st.markdown(f"<div style='text-align:right; color:#666; font-size:12px;'>Posted: {item['date']}</div>", unsafe_allow_html=True)
+    col_p, col_d = st.columns([1, 1])
+    col_p.markdown(f"<h2 style='color:#bfa064; margin:0;'>£{item['price']}</h2>", unsafe_allow_html=True)
+    col_d.markdown(f"<p style='text-align:right; color:#888; font-size:12px; padding-top:15px;'>📅 Posted: {item['date']}</p>", unsafe_allow_html=True)
 
-    # 房源亮点
-    st.markdown("#### 📖 Highlights")
-    st.code(item.get('description', 'No description'), language=None)
-    st.caption("✨ Click top-right to copy description")
+    st.write("---")
+    st.markdown("#### 📜 Description & Available Date")
+    # 使用 st.code 解决一键复制和手机端清晰度问题
+    st.code(item.get('description', '暂无描述'), language=None)
     
-    # 底部联系人与起租日期 (Available Date 通常包含在描述中，也可单独加粗展示)
+    st.write("---")
+    # 这里可以嵌入地图链接
+    st.markdown("#### 📍 Location")
+    map_query = urllib.parse.quote(f"{item['title']} London")
+    st.link_button("🗺️ Open in Google Maps", f"https://www.google.com/maps/search/?api=1&query={map_query}", use_container_width=True)
+
     st.divider()
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.code("HaoHarbour_UK", language=None)
-        st.caption("WeChat ID")
-    with c2:
-        wa_url = f"https://wa.me/447000000000?text=" + urllib.parse.quote(f"Hi, I'm interested in {item['title']}")
-        st.link_button("💬 WhatsApp", wa_url, use_container_width=True)
-    with c3:
-        st.link_button("📞 Call Now", "tel:+447000000000", use_container_width=True)
+    c1, c2 = st.columns(2)
+    c1.code("HaoHarbour_UK", language=None)
+    wa_url = f"https://wa.me/447000000000?text=Hi, info for {item['title']}"
+    c2.link_button("💬 WhatsApp", wa_url, use_container_width=True)
 
-# --- 3. 顶部与提示 ---
+# --- 3. 页面内容 ---
 def get_base64(path):
     try:
         with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
@@ -116,28 +100,19 @@ def get_base64(path):
 
 logo_b64 = get_base64("logo.png")
 if logo_b64:
-    st.markdown(f'<div style="text-align:center; padding:20px;"><img src="data:image/png;base64,{logo_b64}" width="120"></div>', unsafe_allow_html=True)
-else:
-    st.markdown("<h1 style='text-align:center; color:#bfa064; letter-spacing:5px;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center;"><img src="data:image/png;base64,{logo_b64}" width="100"></div>', unsafe_allow_html=True)
 
-st.markdown("""
-    <div class="hint-box">
-        💡 <b>温馨提示：</b> 由于房源数量众多，网站仅展示部分精选房源。<br>
-        如需了解更多伦敦优质房源，请添加微信：<b>HaoHarbour_UK</b> 咨询。
-    </div>
-""", unsafe_allow_html=True)
+st.markdown("""<div class="hint-box">💡 网站仅展示部分精选房源，更多信息请咨询微信</div>""", unsafe_allow_html=True)
 
-# --- 4. 数据展示 ---
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
     
-    # 修复后的筛选栏 (Filter Options)
+    # 筛选栏
     with st.expander("🔍 筛选房源 / Filter Options", expanded=False):
-        f1, f2, f3 = st.columns(3)
-        sel_reg = f1.multiselect("Region", options=df['region'].unique().tolist())
-        sel_room = f2.multiselect("Room Type", options=df['rooms'].unique().tolist())
-        max_p = f3.slider("Max Price (£)", 1000, 15000, 15000)
+        sel_reg = st.multiselect("Region", options=df['region'].unique().tolist())
+        sel_room = st.multiselect("Room", options=df['rooms'].unique().tolist())
+        max_p = st.slider("Max Price", 1000, 15000, 15000)
 
     f_df = df.copy()
     if sel_reg: f_df = f_df[f_df['region'].isin(sel_reg)]
@@ -145,20 +120,12 @@ try:
     f_df = f_df[f_df['price'].fillna(0) <= max_p]
     f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
-    cols = st.columns(3)
+    # 手机端一列，大屏三列
+    cols = st.columns(1 if st.session_state.get('is_mobile', False) else 3)
+    # 自动适配：Streamlit 默认会自动根据宽度调整，我们直接循环
     for i, (idx, row) in enumerate(f_df.iterrows()):
-        with cols[i % 3]:
+        container_col = i % 3 if not st.session_state.get('is_mobile', False) else 0
+        with st.columns(3)[container_col] if not st.session_state.get('is_mobile', False) else st.container():
             with st.container(border=True):
                 st.image(row['poster-link'], use_container_width=True)
-                st.markdown(f"""
-                    <div style="padding:15px; text-align:center;">
-                        <div style="font-weight:600; font-size:16px;">{row['title']}</div>
-                        <div style="color:#888; font-size:12px;">📍 {row['region']} | {row['rooms']}</div>
-                        <div style="color:#bfa064; font-size:18px; font-weight:bold; margin:5px 0;">£{row['price']}</div>
-                        <div style="color:#555; font-size:10px;">Posted on: {row['date']}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-                if st.button("View Details", key=f"btn_{idx}", use_container_width=True):
-                    show_details(row)
-except:
-    st.info("Loading properties...")
+                st.markdown(f"<div style='text-align:center; padding:10px;'><b>{row['title']}</b><br><span style='color:#bfa064;'>£{row['price']}</span></div>", unsafe_allow_html=True
