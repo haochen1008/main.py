@@ -264,60 +264,47 @@ def show_details(item):
     wa_url = f"https://wa.me/447000000000?text=Interested in {item['title']}"
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
-    # 6. 下载
-# # 6. 生成海报预览逻辑 (纯前端 HTML 模式，点击秒开)
+# # 6. 生成海报预览逻辑
     st.markdown("---")
     
-    poster_url = item.get('poster-link', '')
-    xhs_url = "xhsdiscover://publish"
-    wx_url = "weixin://"
+    # 初始化状态开关（如果不存在）
+    if 'show_poster_layer' not in st.session_state:
+        st.session_state.show_poster_layer = False
 
-    # 将 HTML 拆分为三段，避开 f-string 的大括号解析坑
-    html_part1 = """
-    <style>
-        .custom-gen-btn {
-            width: 100%; background-color: #1a1c23; color: white;
-            padding: 12px; text-align: center; border-radius: 8px;
-            cursor: pointer; font-weight: bold; border: none; margin-bottom: 10px;
-        }
-        #posterOverlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 999999;
-            flex-direction: column; align-items: center; justify-content: center;
-        }
-    </style>
+    # 定义关闭函数
+    def close_poster():
+        st.session_state.show_poster_layer = False
 
-    <button class="custom-gen-btn" onclick="document.getElementById('posterOverlay').style.display='flex';">
-        生成房源海报 (Generate Poster)
-    </button>
+    # 生成按钮：点击后直接改状态并 Rerun，确保点一次就出来
+    if st.button("生成房源海报 (Generate Poster)", use_container_width=True):
+        st.session_state.show_poster_layer = True
+        st.rerun()
 
-    <div id="posterOverlay">
-        <div onclick="document.getElementById('posterOverlay').style.display='none';" 
-             style="position: absolute; top: 30px; right: 25px; color: white; cursor: pointer; font-size: 50px; font-weight: bold; padding: 20px; z-index: 1000001;">×</div>
+    # 弹窗渲染层
+    if st.session_state.show_poster_layer:
+        poster_url = item.get('poster-link', '')
+        # 小红书跳转链接
+        xhs_url = "xhsdiscover://publish"
         
-        <img src='"""
-    
-    # 中间插入 poster_url
-    
-    html_part2 = """' style="max-width: 85%; border-radius: 12px; border: 2px solid #bfa064; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
-        
-        <div style="margin-top: 25px; text-align: center;">
-            <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按图片保存，点击下方按钮去发布</p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <a href='"""
-                
-    # 中间插入 wx_url 和 xhs_url
-    
-    html_part3 = """' style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开微信</a>
-                <a href='xhsdiscover://publish' style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">去发布小红书</a>
+        # 这里的叉号我们用 st.button 配合回调，确保能留在详情页
+        st.markdown(f"""
+            <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <img src="{poster_url}" style="max-width: 85%; border-radius: 12px; border: 2px solid #bfa064; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
+                    <div style="margin-top: 25px; text-align: center;">
+                        <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按图片保存，点击下方按钮去发布</p>
+                        <div style="display: flex; gap: 15px; justify-content: center;">
+                            <a href="weixin://" style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">打开微信</a>
+                            <a href="{xhs_url}" style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">去发布小红书</a>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    """
-
-    # 最后的拼接，不使用 f""，确保 100% 不报错
-    full_custom_html = html_part1 + poster_url + html_part2 + wx_url + html_part3
-    st.markdown(full_custom_html, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+        
+        # 关键：用原生按钮做一个“关闭”功能，放在海报层上面，确保能点到且不退回首页
+        if st.button("× 关闭预览 (Close)", on_click=close_poster):
+            st.rerun()
     
 # --- 3. 主界面 ---
 st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
