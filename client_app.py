@@ -297,7 +297,7 @@ def show_details(item):
                 </div>
             </div>
             <script>
-                // 监听叉号点击，重置 streamlit 状态（如果需要彻底清除状态）
+                // 在 f-string 中，JS 的大括号必须写成双份 {{ }} 才能正常工作
                 document.querySelector('.poster-overlay div').onclick = function() {{
                     document.querySelector('.poster-overlay').style.display = 'none';
                 }};
