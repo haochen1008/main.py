@@ -265,18 +265,25 @@ def show_details(item):
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
     # 6. 下载
-   # 直接用 markdown 弹出层替代下载按钮
-    st.markdown(f"""
-        <div class="poster-overlay">
-            <a href="javascript:window.location.reload();" class="close-poster">×</a>
-            <img src="{poster_url}" style="max-width: 85%; border-radius: 10px; border: 2px solid #bfa064;">
-            <div style="margin-top: 20px; text-align: center;">
-                <p style="color: white;">💡 长按图片保存到相册</p>
-                <a href="weixin://" class="jump-btn" style="background: #07C160;">打开微信</a>
-                <a href="xhsdiscover://" class="jump-btn" style="background: #ff2442;">打开小红书</a>
+   # # 6. 生成并下载海报
+    if st.button("生成房源海报 (Generate Poster)", use_container_width=True):
+        # 这里的 poster_url 必须指向您生成的图片链接或 base64 数据
+        # 暂时先用这张房源的主图作为演示，您可以换成真正的海报生成函数
+        poster_url = item['poster-link'] 
+        
+        st.markdown(f"""
+            <div class="poster-overlay">
+                <a href="javascript:window.location.reload();" class="close-poster">×</a>
+                <img src="{poster_url}" style="max-width: 85%; border-radius: 10px; border: 2px solid #bfa064;">
+                <div style="margin-top: 20px; text-align: center;">
+                    <p style="color: white; font-weight: bold;">💡 长按图片保存到相册</p>
+                    <div style="display: flex; justify-content: center; gap: 10px;">
+                        <a href="weixin://" class="jump-btn" style="background: #07C160;">打开微信</a>
+                        <a href="xhsdiscover://" class="jump-btn" style="background: #ff2442;">打开小红书</a>
+                    </div>
+                </div>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
 # --- 3. 主界面 ---
 st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
