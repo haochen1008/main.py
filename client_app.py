@@ -264,27 +264,25 @@ def show_details(item):
     wa_url = f"https://wa.me/447000000000?text=Interested in {item['title']}"
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
-# --- 粘贴开始 ---
+# # 6. 房源海报展示区 (嵌入式方案，100% 稳定)
     st.markdown("---")
-    st.markdown("<h3 style='color: #bfa064;'>🏠 房源海报预览</h3>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #bfa064;'>🏠 房源海报预览</h4>", unsafe_allow_html=True)
     
     poster_url = item.get('poster-link', '')
-    
     if poster_url:
-        # 直接展示，不搞弹窗，彻底解决闪退和点两次没反应的问题
+        # 这种方式不触发刷新，不会闪退，也不会退回主页
         st.image(poster_url, use_container_width=True)
-        st.info("💡 长按图片保存到相册，点击下方按钮去发布")
+        st.info("💡 长按图片保存，点击下方按钮去发布")
         
         col1, col2 = st.columns(2)
-        with col1:
-            # 唤起微信
-            st.link_button("微信 (WeChat)", "weixin://", use_container_width=True)
         with col2:
-            # 唤起小红书最稳协议
+            # 基础跳转协议，解决“版本不支持”报错
             st.link_button("去小红书 (Red)", "xhsdiscover://", use_container_width=True)
+        with col1:
+            st.link_button("微信 (WeChat)", "weixin://", use_container_width=True)
     else:
         st.warning("暂无海报预览 (Poster not available)")
-    # --- 粘贴结束 ---
+        
         # --- TAB 1: 房源展示 ---
     with tabs[0]:
         # --- 核心修改：给筛选区域加一个背景色，让白字能看见 ---
