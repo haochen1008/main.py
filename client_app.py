@@ -411,14 +411,14 @@ try:
                     <div class="service-title">📍 模块 1：精准定向选址</div>
                     <div class="service-text">
                         不仅是找房子，更是匹配生活方式。深度覆盖<b>伦敦、曼城、伯明翰</b>。
-                        提供高清视频带看或实地考察报告，全方位展示真实状况，杜绝“买家秀”骗局。
+                        根据校区、预算、安全系数及周边交通进行大数据筛选。。
                     </div>
                 </div>
                 <div class="service-card">
                     <div class="service-title">🔑 模块 3：极速入住管家</div>
                     <div class="service-text">
-                        协助开通水、电、煤气及高性价比网络。指导申请 <b>Council Tax 免税证明</b>，
-                        入住当天协助 Inventory 拍照存证，确保退房时押金全额退还。
+                        协助开通水、电、煤气及高性价比网络。
+                        指导申请 <b>Council Tax 免税证明</b>。
                     </div>
                 </div>
             """, unsafe_allow_html=True)
@@ -435,8 +435,8 @@ try:
                 <div class="service-card">
                     <div class="service-title">🌟 模块 4：增值生活支持</div>
                     <div class="service-text">
-                        服务不因租约签订而终止。入住期间提供漏水、设备维修等纠纷的咨询，
-                        并针对下一学年的续租或迁徙提供前瞻性建议。
+                        协助查看验房报告，确保退房时押金全额退还。
+                        协助查看验房报告，确保退房时押金全额退还。
                     </div>
                 </div>
             """, unsafe_allow_html=True)
@@ -455,7 +455,7 @@ try:
                     🏢 <b>行业巨头背景</b>：曾任职于五大行之一的 JLL，引入世界级房地产专业标准。<br>
                     🇬🇧 <b>十载英伦深耕</b>：扎根英国 10 余年，提供比地图更精准的社区治安及族裔分布解析。<br>
                     🤝 <b>官方战略合作</b>：与众多本土管理公司建立稳固合作，掌握大量不公开的“独家房源”。<br>
-                    🏆 <b>金牌服务口碑</b>：成功协助数百位留学生完成从申请到入住的完美过渡。
+                    🏆 <b>金牌服务口碑</b>：专业持牌ARLA房产专家，成功协助数百位留学生完成从申请到入住的完美过渡。
                 </p>
             </div>
         """, unsafe_allow_html=True)
