@@ -264,9 +264,28 @@ def show_details(item):
     wa_url = f"https://wa.me/447000000000?text=Interested in {item['title']}"
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
-# # 6. 房源海报功能 (折叠显示方案 - 最稳定)
+    # # 6. 房源海报功能 (折叠显示方案 - 最稳定)
     st.markdown("---")
     
+    # 使用原生折叠组件，避免了弹出层的兼容性问题
+    with st.expander("✨ 点击生成/查看房源海报 (Generate Poster)", expanded=False):
+        poster_url = item.get('poster-link', '')
+        if poster_url:
+            # 1. 显示海报
+            st.image(poster_url, caption="长按上方图片保存到相册", use_container_width=True)
+            
+            # 2. 提示文字
+            st.write("💡 保存后点击下方按钮快速跳转分享：")
+            
+            # 3. 跳转按钮 (使用 Link Button，最适配移动端浏览器)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.link_button("微信 (WeChat)", "weixin://", use_container_width=True)
+            with col2:
+                # 使用通用唤起协议，避开版本不支持报错
+                st.link_button("去小红书 (Red)", "xhsdiscover://", use_container_width=True)
+        else:
+            st.warning("暂无海报预览 (No poster available)")
     # 使用原生折叠组件，避免了弹出层的兼容性问题
     with st.expander("✨ 点击生成/查看房源海报 (Generate Poster)", expanded=False):
         poster_url = item.get('poster-link', '')
