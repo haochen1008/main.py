@@ -266,17 +266,15 @@ def show_details(item):
     
     # 6. 下载
   # --- 粘贴开始位置：紧跟在 WhatsApp 按钮代码下方 ---
+   # --- 请确保以下代码比 def show_details(item): 多缩进一层 ---
     st.markdown("---")
-    # 使用按钮触发，避免一进详情页就弹窗
     if st.button("生成房源海报 (Generate Poster)", use_container_width=True):
         poster_url = item.get('poster-link', '')
         st.markdown(f"""
             <div class="poster-overlay">
                 <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
                     <a href="./" target="_self" style="position: absolute; top: 20px; right: 20px; color: white; text-decoration: none; font-size: 45px; font-weight: bold; z-index: 100000;">×</a>
-                    
                     <img src="{poster_url}" style="max-width: 85%; border-radius: 12px; border: 2px solid #bfa064; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
-                    
                     <div style="margin-top: 25px; text-align: center;">
                         <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按上方图片保存到相册</p>
                         <div style="display: flex; gap: 15px; justify-content: center;">
@@ -287,7 +285,6 @@ def show_details(item):
                 </div>
             </div>
         """, unsafe_allow_html=True)
-    # --- 粘贴结束位置 ---
     
 # --- 3. 主界面 ---
 st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
