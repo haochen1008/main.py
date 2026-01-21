@@ -265,60 +265,59 @@ def show_details(item):
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
     # 6. 下载
-# # 6. 生成海报预览逻辑
+# # 6. 生成海报预览逻辑 (纯前端 HTML 模式，点击秒开)
     st.markdown("---")
     
-    # 获取图片链接
     poster_url = item.get('poster-link', '')
-    
-    # 构造跳转链接：小红书发布页 (适配最新协议)
     xhs_url = "xhsdiscover://publish"
-    # 微信扫一扫/分享 (微信限制多，通常只能唤起 App)
     wx_url = "weixin://"
 
-    # 直接渲染按钮和弹窗逻辑，不再使用 st.button 包裹，彻底解决“点两次”问题
-    # 我们用 HTML 按钮来替代 st.button 以获得极速响应
-    st.markdown(f"""
-        <style>
-            .custom-gen-btn {{
-                width: 100%;
-                background-color: #1a1c23;
-                color: white;
-                padding: 10px;
-                text-align: center;
-                border-radius: 8px;
-                cursor: pointer;
-                font-weight: bold;
-                border: none;
-                margin-bottom: 10px;
-            }}
-            #posterOverlay {{
-                display: none;
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.9); z-index: 999999;
-                flex-direction: column; align-items: center; justify-content: center;
-            }}
-        </style>
+    # 将 HTML 拆分为三段，避开 f-string 的大括号解析坑
+    html_part1 = """
+    <style>
+        .custom-gen-btn {
+            width: 100%; background-color: #1a1c23; color: white;
+            padding: 12px; text-align: center; border-radius: 8px;
+            cursor: pointer; font-weight: bold; border: none; margin-bottom: 10px;
+        }
+        #posterOverlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 999999;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+    </style>
 
-        <button class="custom-gen-btn" onclick="document.getElementById('posterOverlay').style.display='flex';">
-            生成房源海报 (Generate Poster)
-        </button>
+    <button class="custom-gen-btn" onclick="document.getElementById('posterOverlay').style.display='flex';">
+        生成房源海报 (Generate Poster)
+    </button>
 
-        <div id="posterOverlay">
-            <div onclick="document.getElementById('posterOverlay').style.display='none';" 
-                 style="position: absolute; top: 40px; right: 30px; color: white; cursor: pointer; font-size: 50px; font-weight: bold; padding: 20px;">×</div>
-            
-            <img src="{poster_url}" style="max-width: 85%; border-radius: 12px; border: 2px solid #bfa064; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
-            
-            <div style="margin-top: 25px; text-align: center;">
-                <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按图片保存，点击下方按钮去发布</p>
-                <div style="display: flex; gap: 15px; justify-content: center;">
-                    <a href="{wx_url}" style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开微信</a>
-                    <a href="{xhs_url}" style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">去发布小红书</a>
-                </div>
+    <div id="posterOverlay">
+        <div onclick="document.getElementById('posterOverlay').style.display='none';" 
+             style="position: absolute; top: 30px; right: 25px; color: white; cursor: pointer; font-size: 50px; font-weight: bold; padding: 20px; z-index: 1000001;">×</div>
+        
+        <img src='"""
+    
+    # 中间插入 poster_url
+    
+    html_part2 = """' style="max-width: 85%; border-radius: 12px; border: 2px solid #bfa064; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
+        
+        <div style="margin-top: 25px; text-align: center;">
+            <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按图片保存，点击下方按钮去发布</p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <a href='"""
+                
+    # 中间插入 wx_url 和 xhs_url
+    
+    html_part3 = """' style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开微信</a>
+                <a href='xhsdiscover://publish' style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">去发布小红书</a>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    </div>
+    """
+
+    # 最后的拼接，不使用 f""，确保 100% 不报错
+    full_custom_html = html_part1 + poster_url + html_part2 + wx_url + html_part3
+    st.markdown(full_custom_html, unsafe_allow_html=True)
     
 # --- 3. 主界面 ---
 st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
