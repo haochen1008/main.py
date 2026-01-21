@@ -265,17 +265,11 @@ def show_details(item):
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
     # 6. 下载
-   # # 6. 生成海报预览 (Poster Preview)
-    if "show_poster" not in st.session_state:
-        st.session_state.show_poster = False
-
+   # # 6. 生成海报预览逻辑
+    st.markdown("---")
     if st.button("生成房源海报 (Generate Poster)", use_container_width=True):
-        st.session_state.show_poster = True
-
-    # 如果用户点击了生成，显示全屏弹窗
-   # 如果用户点击了生成，显示全屏弹窗
-    if st.session_state.show_poster:
-        poster_url = item['poster-link'] 
+        # 这里的 poster_link 确保从当前查看的 item 中获取
+        poster_url = item.get('poster-link', '') 
         
         st.markdown(f"""
             <div class="poster-overlay">
