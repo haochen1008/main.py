@@ -265,12 +265,11 @@ def show_details(item):
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
     # 6. 下载
-   # # 6. 生成海报预览逻辑
+  # --- 粘贴开始位置：紧跟在 WhatsApp 按钮代码下方 ---
     st.markdown("---")
+    # 使用按钮触发，避免一进详情页就弹窗
     if st.button("生成房源海报 (Generate Poster)", use_container_width=True):
-        # 这里的 poster_link 确保从当前查看的 item 中获取
-        poster_url = item.get('poster-link', '') 
-        
+        poster_url = item.get('poster-link', '')
         st.markdown(f"""
             <div class="poster-overlay">
                 <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -288,6 +287,8 @@ def show_details(item):
                 </div>
             </div>
         """, unsafe_allow_html=True)
+    # --- 粘贴结束位置 ---
+    
 # --- 3. 主界面 ---
 st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:#bfa064; font-size:12px; margin-top:0; letter-spacing:3px;'>EXCLUSIVE LONDON LIVING</p>", unsafe_allow_html=True)
