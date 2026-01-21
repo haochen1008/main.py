@@ -265,18 +265,36 @@ def show_details(item):
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
     # 6. 下载
-   # # 6. 生成并下载海报
+   # # 6. 生成海报预览 (Poster Preview)
+    # 我们使用 Streamlit 原生的按钮来控制显示，避开 Safari 的脚本拦截
+    if "show_poster" not in st.session_state:
+        st.session_state.show_poster = False
+
     if st.button("生成房源海报 (Generate Poster)", use_container_width=True):
-        # 这里的 poster_url 必须指向您生成的图片链接或 base64 数据
-        # 暂时先用这张房源的主图作为演示，您可以换成真正的海报生成函数
+        st.session_state.show_poster = True
+
+    # 如果用户点击了生成，显示全屏弹窗
+    if st.session_state.show_poster:
+        # 这里定义 poster_url，解决 NameError 问题
         poster_url = item['poster-link'] 
         
         st.markdown(f"""
             <div class="poster-overlay">
-                <a href="javascript:window.location.reload();" class="close-poster">×</a>
-                <img src="{poster_url}" style="max-width: 85%; border-radius: 10px; border: 2px solid #bfa064;">
-                <div style="margin-top: 20px; text-align: center;">
-                    <p style="color: white; font-weight: bold;">💡 长按图片保存到相册</p>
+                <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <a href="/" target="_self" style="position: absolute; top: 20px; right: 20px; color: white; text-decoration: none; font-size: 45px; font-weight: bold; z-index: 100000;">×</a>
+                    
+                    <img src="{poster_url}" style="max-width: 85%; border-radius: 12px; border: 2px solid #bfa064; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
+                    
+                    <div style="margin-top: 25px; text-align: center;">
+                        <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按上方图片保存到相册</p>
+                        <div style="display: flex; gap: 15px; justify-content: center;">
+                            <a href="weixin://" class="jump-btn" style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开微信</a>
+                            <a href="xhsdiscover://" class="jump-btn" style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开小红书</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
                     <div style="display: flex; justify-content: center; gap: 10px;">
                         <a href="weixin://" class="jump-btn" style="background: #07C160;">打开微信</a>
                         <a href="xhsdiscover://" class="jump-btn" style="background: #ff2442;">打开小红书</a>
