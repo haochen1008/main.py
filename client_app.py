@@ -264,47 +264,30 @@ def show_details(item):
     wa_url = f"https://wa.me/447000000000?text=Interested in {item['title']}"
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
-# # 6. 生成海报预览逻辑
+# # 6. 房源海报功能 (官方对话框方案，解决闪退与卡顿)
     st.markdown("---")
     
-    # 初始化状态开关（如果不存在）
-    if 'show_poster_layer' not in st.session_state:
-        st.session_state.show_poster_layer = False
-
-    # 定义关闭函数
-    def close_poster():
-        st.session_state.show_poster_layer = False
-
-    # 生成按钮：点击后直接改状态并 Rerun，确保点一次就出来
-    if st.button("生成房源海报 (Generate Poster)", use_container_width=True):
-        st.session_state.show_poster_layer = True
-        st.rerun()
-
-    # 弹窗渲染层
-    if st.session_state.show_poster_layer:
-        poster_url = item.get('poster-link', '')
-        # 小红书跳转链接
-        xhs_url = "xhsdiscover://publish"
+    # 定义海报对话框内容
+    @st.dialog("房源海报预览 (Poster Preview)")
+    def show_poster_dialog(url):
+        st.image(url, use_container_width=True)
+        st.info("💡 长按上方图片即可保存到相册")
         
-        # 这里的叉号我们用 st.button 配合回调，确保能留在详情页
-        st.markdown(f"""
-            <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                    <img src="{poster_url}" style="max-width: 85%; border-radius: 12px; border: 2px solid #bfa064; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
-                    <div style="margin-top: 25px; text-align: center;">
-                        <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按图片保存，点击下方按钮去发布</p>
-                        <div style="display: flex; gap: 15px; justify-content: center;">
-                            <a href="weixin://" style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">打开微信</a>
-                            <a href="{xhs_url}" style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">去发布小红书</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # 关键：用原生按钮做一个“关闭”功能，放在海报层上面，确保能点到且不退回首页
-        if st.button("× 关闭预览 (Close)", on_click=close_poster):
-            st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            # 微信通用跳转
+            st.link_button("微信 (WeChat)", "weixin://", use_container_width=True)
+        with col2:
+            # 改用小红书通用唤起协议，提高兼容性
+            st.link_button("小红书 (Red)", "xhsdiscover://", use_container_width=True)
+
+    # 主触发按钮
+    poster_url = item.get('poster-link', '')
+    if st.button("生成房源海报 (Generate Poster)", use_container_width=True, type="primary"):
+        if poster_url:
+            show_poster_dialog(poster_url)
+        else:
+            st.error("未找到海报链接 (Poster link not found)")
     
 # --- 3. 主界面 ---
 st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
