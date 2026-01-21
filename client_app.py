@@ -265,20 +265,27 @@ def show_details(item):
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
 # # 6. 房源海报展示区 (嵌入式方案，100% 稳定，不闪退)
+    # # 6. 房源海报展示区 (嵌入式方案，100% 稳定，不闪退)
     st.markdown("---")
     st.subheader("🏠 房源海报预览")
     
     poster_url = item.get('poster-link', '')
     
     if poster_url:
-        # 直接显示海报图片，省去点击生成的等待
+        # 直接显示海报图片，用户无需点击两次
         st.image(poster_url, use_container_width=True)
-        
         st.info("💡 长按上方图片保存到相册")
         
         # 两个显眼的跳转按钮
         col1, col2 = st.columns(2)
         with col1:
+            # 唤起微信
+            st.link_button("微信 (WeChat)", "weixin://", use_container_width=True)
+        with col2:
+            # 唤起小红书 (使用最稳妥的基础协议)
+            st.link_button("小红书 (Red)", "xhsdiscover://", use_container_width=True)
+    else:
+        st.warning("暂无海报预览 (Poster not available)")
             # 唤起微信
             st.link_button("微信分享 (WeChat)", "weixin://", use_container_width=True)
         with col2:
