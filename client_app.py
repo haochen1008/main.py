@@ -264,42 +264,28 @@ def show_details(item):
     wa_url = f"https://wa.me/447000000000?text=Interested in {item['title']}"
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
-# # 6. 房源海报功能 (官方对话框方案，解决闪退与卡顿)
+# # 6. 房源海报功能 (折叠显示方案 - 最稳定)
     st.markdown("---")
     
-    # 定义海报对话框内容
-    @st.dialog("房源海报预览 (Poster Preview)")
-    def show_poster_dialog(url):
-        st.image(url, use_container_width=True)
-        st.info("💡 长按上方图片即可保存到相册")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            # 微信通用跳转
-            st.link_button("微信 (WeChat)", "weixin://", use_container_width=True)
-        with col2:
-            # 改用小红书通用唤起协议，提高兼容性
-            st.link_button("小红书 (Red)", "xhsdiscover://", use_container_width=True)
-
-    # 主触发按钮
-    poster_url = item.get('poster-link', '')
-    if st.button("生成房源海报 (Generate Poster)", use_container_width=True, type="primary"):
+    # 使用原生折叠组件，避免了弹出层的兼容性问题
+    with st.expander("✨ 点击生成/查看房源海报 (Generate Poster)", expanded=False):
+        poster_url = item.get('poster-link', '')
         if poster_url:
-            show_poster_dialog(poster_url)
+            # 1. 显示海报
+            st.image(poster_url, caption="长按上方图片保存到相册", use_container_width=True)
+            
+            # 2. 提示文字
+            st.write("💡 保存后点击下方按钮快速跳转分享：")
+            
+            # 3. 跳转按钮 (使用 Link Button，最适配移动端浏览器)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.link_button("微信 (WeChat)", "weixin://", use_container_width=True)
+            with col2:
+                # 使用通用唤起协议，避开版本不支持报错
+                st.link_button("去小红书 (Red)", "xhsdiscover://", use_container_width=True)
         else:
-            st.error("未找到海报链接 (Poster link not found)")
-    
-# --- 3. 主界面 ---
-st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#bfa064; font-size:12px; margin-top:0; letter-spacing:3px;'>EXCLUSIVE LONDON LIVING</p>", unsafe_allow_html=True)
-
-# --- 导航栏设计 ---
-tabs = st.tabs(["🏠 精选房源 (Properties)", "🛠️ 我们的服务 (Services)", "👤 关于我们 (About Us)", "📞 联系方式 (Contact)"])
-
-try:
-    # 1. 获取数据
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    df = conn.read(worksheet="Sheet1", ttl=300).dropna(how='all')
+            st.warning("暂无海报预览 (No poster available)")
 
         # --- TAB 1: 房源展示 ---
     with tabs[0]:
