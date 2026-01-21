@@ -109,6 +109,22 @@ st.markdown("""
         margin-bottom: 10px;
         border: 1px solid #bfa064;
     }
+    /* 海报弹窗背景 */
+        .poster-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 99999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        /* 右上角叉号 */
+        .close-poster {
+            position: absolute; top: 30px; right: 30px;
+            font-size: 40px; color: white; cursor: pointer; text-decoration: none; font-weight: bold;
+        }
+        /* 跳转按钮样式 */
+        .jump-btn {
+            display: inline-block; padding: 12px 25px; margin: 10px;
+            border-radius: 30px; text-decoration: none; color: white; font-weight: bold;
+        }
 
 /* 1. 彻底移除顶部状态栏（包含 GitHub 和 Manage App 入口） */
     header, [data-testid="stHeader"] {
@@ -249,11 +265,18 @@ def show_details(item):
     st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp Chat</a>', unsafe_allow_html=True)
     
     # 6. 下载
-    st.write("---")
-    try:
-        img_data = urllib.request.urlopen(item['poster-link']).read()
-        st.download_button("📥 Save Poster to Phone", data=img_data, file_name=f"{item['title']}.jpg", mime="image/jpeg", use_container_width=True)
-    except: pass
+   # 直接用 markdown 弹出层替代下载按钮
+    st.markdown(f"""
+        <div class="poster-overlay">
+            <a href="javascript:window.location.reload();" class="close-poster">×</a>
+            <img src="{poster_url}" style="max-width: 85%; border-radius: 10px; border: 2px solid #bfa064;">
+            <div style="margin-top: 20px; text-align: center;">
+                <p style="color: white;">💡 长按图片保存到相册</p>
+                <a href="weixin://" class="jump-btn" style="background: #07C160;">打开微信</a>
+                <a href="xhsdiscover://" class="jump-btn" style="background: #ff2442;">打开小红书</a>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 # --- 3. 主界面 ---
 st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
