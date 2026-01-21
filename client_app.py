@@ -268,22 +268,40 @@ def show_details(item):
   # --- 粘贴开始位置：紧跟在 WhatsApp 按钮代码下方 ---
    # --- 请确保以下代码比 def show_details(item): 多缩进一层 ---
     st.markdown("---")
+    # 使用 session_state 来控制弹窗显示，这样点击关闭按钮就不会导致整个页面重置
+    if "show_overlay" not in st.session_state:
+        st.session_state.show_overlay = False
+
     if st.button("生成房源海报 (Generate Poster)", use_container_width=True):
+        st.session_state.show_overlay = True
+        st.rerun() # 立即刷新当前状态
+
+    if st.session_state.show_overlay:
         poster_url = item.get('poster-link', '')
         st.markdown(f"""
             <div class="poster-overlay">
                 <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                    <a href="./" target="_self" style="position: absolute; top: 20px; right: 20px; color: white; text-decoration: none; font-size: 45px; font-weight: bold; z-index: 100000;">×</a>
+                    
+                    <div onclick="this.parentElement.parentElement.style.display='none';" 
+                         style="position: absolute; top: 20px; right: 20px; color: white; cursor: pointer; font-size: 45px; font-weight: bold; z-index: 100000;">×</div>
+                    
                     <img src="{poster_url}" style="max-width: 85%; border-radius: 12px; border: 2px solid #bfa064; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
+                    
                     <div style="margin-top: 25px; text-align: center;">
                         <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按上方图片保存到相册</p>
                         <div style="display: flex; gap: 15px; justify-content: center;">
-                            <a href="weixin://" style="background: #07C160; padding: 10px 20px; border-radius: 20px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">打开微信</a>
-                            <a href="xhsdiscover://" style="background: #ff2442; padding: 10px 20px; border-radius: 20px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">打开小红书</a>
+                            <a href="weixin://dl/moments" style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">打开微信</a>
+                            <a href="xhsdiscover://publish" style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">去发布小红书</a>
                         </div>
                     </div>
                 </div>
             </div>
+            <script>
+                // 监听叉号点击，重置 streamlit 状态（如果需要彻底清除状态）
+                document.querySelector('.poster-overlay div').onclick = function() {{
+                    document.querySelector('.poster-overlay').style.display = 'none';
+                }};
+            </script>
         """, unsafe_allow_html=True)
     
 # --- 3. 主界面 ---
