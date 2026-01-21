@@ -273,10 +273,10 @@ def show_details(item):
         st.session_state.show_poster = True
 
     # 如果用户点击了生成，显示全屏弹窗
+   # 如果用户点击了生成，显示全屏弹窗
     if st.session_state.show_poster:
         poster_url = item['poster-link'] 
         
-        # 这里的 HTML 代码必须被包含在一个 st.markdown() 括号内
         st.markdown(f"""
             <div class="poster-overlay">
                 <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -287,8 +287,8 @@ def show_details(item):
                     <div style="margin-top: 25px; text-align: center;">
                         <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按上方图片保存到相册</p>
                         <div style="display: flex; gap: 15px; justify-content: center;">
-                            <a href="weixin://" style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开微信</a>
-                            <a href="xhsdiscover://" style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开小红书</a>
+                            <a href="weixin://" style="background: #07C160; padding: 10px 20px; border-radius: 20px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">打开微信</a>
+                            <a href="xhsdiscover://" style="background: #ff2442; padding: 10px 20px; border-radius: 20px; color: white; text-decoration: none; font-weight: bold; font-size: 14px;">打开小红书</a>
                         </div>
                     </div>
                 </div>
