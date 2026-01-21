@@ -343,7 +343,7 @@ try:
             
             <div class="custom-warning">
                 💡 <b>温馨提示：</b> 由于房源数量众多，网站仅展示部分精选房源。<br>
-                如需了解更多伦敦优质房源，请添加微信：<b>HaoHarbour_UK</b> 咨询。
+                如需了解更多伦敦优质房源，请添加微信：<b>HaoHarbour</b> 咨询。
             </div>
         """, unsafe_allow_html=True)
 
@@ -436,7 +436,7 @@ try:
                     <div class="service-title">🌟 模块 4：增值生活支持</div>
                     <div class="service-text">
                         协助查看验房报告，确保退房时押金全额退还。
-                        协助查看验房报告，确保退房时押金全额退还。
+                        协助安排深度退租清洁，长期合作，靠谱实惠。
                     </div>
                 </div>
             """, unsafe_allow_html=True)
@@ -477,7 +477,7 @@ try:
                 <div style="text-align: center; padding: 20px; background: white; border-radius: 15px; border: 1px solid #e0e0e0; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
                     <img src="https://cdn-icons-png.flaticon.com/512/3670/3670325.png" width="50" style="margin-bottom:10px;">
                     <h4 style="margin:0; color:#1a1c23;">WeChat</h4>
-                    <p style="color:#bfa064; font-weight:bold; margin:5px 0;">HaoHarbour_UK</p>
+                    <p style="color:#bfa064; font-weight:bold; margin:5px 0;">HaoHarbour<ff/p>
                     <p style="font-size:12px; color:#999;">扫码或添加微信号咨询</p>
                 </div>
             """, unsafe_allow_html=True)
