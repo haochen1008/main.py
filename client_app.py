@@ -266,7 +266,6 @@ def show_details(item):
     
     # 6. 下载
    # # 6. 生成海报预览 (Poster Preview)
-    # 我们使用 Streamlit 原生的按钮来控制显示，避开 Safari 的脚本拦截
     if "show_poster" not in st.session_state:
         st.session_state.show_poster = False
 
@@ -275,34 +274,26 @@ def show_details(item):
 
     # 如果用户点击了生成，显示全屏弹窗
     if st.session_state.show_poster:
-        # 这里定义 poster_url，解决 NameError 问题
         poster_url = item['poster-link'] 
         
+        # 这里的 HTML 代码必须被包含在一个 st.markdown() 括号内
         st.markdown(f"""
             <div class="poster-overlay">
                 <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                    <a href="/" target="_self" style="position: absolute; top: 20px; right: 20px; color: white; text-decoration: none; font-size: 45px; font-weight: bold; z-index: 100000;">×</a>
+                    <a href="./" target="_self" style="position: absolute; top: 20px; right: 20px; color: white; text-decoration: none; font-size: 45px; font-weight: bold; z-index: 100000;">×</a>
                     
                     <img src="{poster_url}" style="max-width: 85%; border-radius: 12px; border: 2px solid #bfa064; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
                     
                     <div style="margin-top: 25px; text-align: center;">
                         <p style="color: white; font-size: 16px; margin-bottom: 15px;">💡 长按上方图片保存到相册</p>
                         <div style="display: flex; gap: 15px; justify-content: center;">
-                            <a href="weixin://" class="jump-btn" style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开微信</a>
-                            <a href="xhsdiscover://" class="jump-btn" style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开小红书</a>
+                            <a href="weixin://" style="background: #07C160; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开微信</a>
+                            <a href="xhsdiscover://" style="background: #ff2442; padding: 12px 25px; border-radius: 25px; color: white; text-decoration: none; font-weight: bold;">打开小红书</a>
                         </div>
                     </div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
-                    <div style="display: flex; justify-content: center; gap: 10px;">
-                        <a href="weixin://" class="jump-btn" style="background: #07C160;">打开微信</a>
-                        <a href="xhsdiscover://" class="jump-btn" style="background: #ff2442;">打开小红书</a>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
 # --- 3. 主界面 ---
 st.markdown("<h1 style='text-align:center; color:#bfa064; margin-bottom:0;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:#bfa064; font-size:12px; margin-top:0; letter-spacing:3px;'>EXCLUSIVE LONDON LIVING</p>", unsafe_allow_html=True)
