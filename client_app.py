@@ -258,7 +258,7 @@ def show_details(item):
 
      # 1. 微信 (置顶)
     st.markdown('<div class="wechat-header"><b>微信咨询 (WeChat):</b></div>', unsafe_allow_html=True)
-    st.code("HaoHarbour_UK", language=None)
+    st.code("HaoHarbour", language=None)
     
     # 2. WhatsApp
     wa_url = f"https://wa.me/447000000000?text=Interested in {item['title']}"
@@ -329,7 +329,7 @@ try:
         """, unsafe_allow_html=True)
 
         # 这里的提示框保持现在的金棕色风格
-        #st.markdown('<div class="custom-warning">💡 温馨提示：更多伦敦优质房源，请咨询微信：HaoHarbour_UK</div>', unsafe_allow_html=True)
+        #st.markdown('<div class="custom-warning">💡 温馨提示：更多伦敦优质房源，请咨询微信：HaoHarbour</div>', unsafe_allow_html=True)
         
 
         
@@ -463,7 +463,7 @@ try:
                     </div>
                 </div>
                 <div class="service-card">
-                    <div class="service-title">🌟 模块 4：增值生活支持</div>
+                    <div class="service-title">🌟 模块 4：安心退房无忧</div>
                     <div class="service-text">
                         协助查看验房报告，确保退房时押金全额退还。
                         协助安排深度退租清洁，长期合作，靠谱实惠。
