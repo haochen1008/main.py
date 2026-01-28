@@ -45,19 +45,25 @@ def get_authorized_client():
 st.title("🏡 Hao Harbour 数据管理")
 SHEET_ID = "1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74"
 
-if st.button("🔥 彻底重连并加载数据"):
-    # 清除所有可能的缓存干扰
-    st.cache_resource.clear()
-    
+if st.button("🔍 深度诊断连接"):
     client = get_authorized_client()
     if client:
         try:
-            # 尝试访问
-            sheet = client.open_by_key(SHEET_ID).worksheet("Sheet1")
+            # 1. 尝试列出所有该账号有权访问的文件（诊断权限）
+            files = client.list_spreadsheet_files()
+            st.write("当前账号可见的表格列表:", [f['name'] for f in files])
+            
+            # 2. 尝试打开
+            sh = client.open_by_key(SHEET_ID)
+            st.success(f"找到表格: {sh.title}")
+            
+            # 3. 读取数据
+            sheet = sh.get_worksheet(0) # 获取第一个工作表
             data = sheet.get_all_records()
-            st.success("连接成功！")
-            st.dataframe(pd.DataFrame(data), use_container_width=True)
+            st.dataframe(pd.DataFrame(data))
         except Exception as e:
-            # 如果签名过了，报错会变成 "Permission Denied" 
-            # 但你已经授权了 Editor，所以只要签名过，这里就一定能通
-            st.error(f"Google 验证通过了，但读取表格失败: {e}")
+            st.error(f"读取失败详情: {e}")
+            if "API_KEY_SERVICE_BLOCKED" in str(e):
+                st.warning("请去 Google Cloud 控制台开启 'Google Drive API'")
+            elif "SpreadsheetNotFound" in str(e):
+                st.warning("找不到表格，请检查 SHEET_ID 是否正确，并确认已分享给 Service Account 邮箱")
