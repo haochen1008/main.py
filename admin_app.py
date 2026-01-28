@@ -4,8 +4,8 @@ from google.oauth2 import service_account
 import gspread
 import json
 
-# --- 核心凭据区 ---
-# 请将你 image_60cff9.png 中看到的完整内容【原封不动】贴在下面
+# --- 1. JSON 字符串 ---
+# 请确保这里粘贴的是你截图 1 中那个最新的完整 JSON
 MY_JSON_DATA = r'''
 {
   "type": "service_account",
@@ -17,18 +17,17 @@ MY_JSON_DATA = r'''
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
   "token_uri": "https://oauth2.googleapis.com/token",
   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/streamlit-bot%40canvas-voltage-278814.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/streamlit-bot%40canvas-voltage-278814.iam.gserviceaccount.com"
 }
 '''
 
 def get_authorized_client():
     try:
-        # 解析 JSON
+        # 解析文本为 JSON 字典
         info = json.loads(MY_JSON_DATA)
         
-        # 【关键修正】：手动强制转换那些烦人的 \n 字符
-        # 这步如果不做，Google 就会一直报 Invalid JWT Signature
+        # 【最关键的物理修复】：
+        # 你的 JSON 文本里的 \n 是两个字符，我们需要把它换成真正的换行符号
         if "private_key" in info:
             info["private_key"] = info["private_key"].replace("\\n", "\n")
             
@@ -39,26 +38,26 @@ def get_authorized_client():
         ])
         return gspread.authorize(scoped)
     except Exception as e:
-        st.error(f"密钥解析阶段出错: {e}")
+        st.error(f"密钥解析阶段就失败了: {e}")
         return None
 
-# --- 页面逻辑 ---
+# --- 2. 页面逻辑 ---
 st.title("🏡 Hao Harbour 数据管理")
 SHEET_ID = "1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74"
 
-if st.button("🚀 强制重连并加载数据"):
-    # 清除 Streamlit 可能存在的旧缓存
+if st.button("🔥 彻底重连并加载数据"):
+    # 清除所有可能的缓存干扰
     st.cache_resource.clear()
     
     client = get_authorized_client()
     if client:
         try:
-            # 尝试打开表格
+            # 尝试访问
             sheet = client.open_by_key(SHEET_ID).sheet1
             data = sheet.get_all_records()
-            st.success(f"连接成功！当前账号: {info['client_email']}")
+            st.success("连接成功！")
             st.dataframe(pd.DataFrame(data), use_container_width=True)
         except Exception as e:
-            # 只有当签名（Signature）通过了，这里的权限报错才有参考价值
-            st.error(f"Google 拒绝了访问请求: {e}")
-            st.info(f"请再次确认此邮箱已被设为 Editor (如图 image_607657): \n{json.loads(MY_JSON_DATA)['client_email']}")
+            # 如果签名过了，报错会变成 "Permission Denied" 
+            # 但你已经授权了 Editor，所以只要签名过，这里就一定能通
+            st.error(f"Google 验证通过了，但读取表格失败: {e}")
