@@ -4,8 +4,8 @@ from google.oauth2 import service_account
 import gspread
 import json
 
-# --- 1. 填空区 ---
-# 请把你的 JSON 文件内容完整地粘贴在下面两个 r''' 之间
+# --- 1. JSON 字符串 ---
+# 请确保这里粘贴的是完整的、带大括号 {} 的 JSON 内容
 raw_json_str = r'''
 {
   "type": "service_account",
@@ -20,14 +20,16 @@ raw_json_str = r'''
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/streamlit-bot%40canvas-voltage-278814.iam.gserviceaccount.com",
   "universe_domain": "googleapis.com"
 }
-
 '''
 
-# --- 2. 核心连接逻辑 ---
 def get_gsheet_client():
     try:
-        # 直接解析字符串，不经过 Secrets，格式 100% 保持原样
         info = json.loads(raw_json_str)
+        
+        # 【关键修正】：自动处理私钥中的换行符，防止 JWT 签名失败
+        if "private_key" in info:
+            info["private_key"] = info["private_key"].replace("\\n", "\n")
+        
         creds = service_account.Credentials.from_service_account_info(info)
         scoped = creds.with_scopes([
             'https://www.googleapis.com/auth/spreadsheets',
@@ -35,26 +37,22 @@ def get_gsheet_client():
         ])
         return gspread.authorize(scoped)
     except Exception as e:
-        st.error(f"解析 JSON 失败（请检查粘贴是否完整）: {e}")
+        st.error(f"解析失败: {e}")
         return None
 
-# --- 3. 页面展示 ---
-st.set_page_config(page_title="房源管理中心")
+# --- 2. 页面逻辑 ---
 st.title("🏡 Hao Harbour 数据管理")
-
 SHEET_ID = "1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74"
 
 if st.button("🔄 立即刷新表格数据"):
     client = get_gsheet_client()
     if client:
         try:
-            with st.spinner("连接中..."):
-                # 打开表格并读取
-                sheet = client.open_by_key(SHEET_ID).sheet1
-                data = sheet.get_all_records()
-                if data:
-                    st.dataframe(pd.DataFrame(data), use_container_width=True)
-                else:
-                    st.warning("表格里好像还没有数据。")
+            # 尝试打开表格
+            sheet = client.open_by_key(SHEET_ID).sheet1
+            data = sheet.get_all_records()
+            st.dataframe(pd.DataFrame(data))
         except Exception as e:
-            st.error(f"读取失败: {e}\n请确认你的 Service Account 邮箱是否有权限查看该表格。")
+            # 如果报 'Permission denied'，说明需要执行下方的第二步
+            st.error(f"访问被拒绝: {e}")
+            st.info(f"请确保已将此邮箱设为表格的『编辑者』: \n {json.loads(raw_json_str).get('client_email')}")
