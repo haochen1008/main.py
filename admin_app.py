@@ -2,24 +2,33 @@ import streamlit as st
 import pandas as pd
 from google.oauth2 import service_account
 import gspread
+import time
 
 def get_authorized_client():
     try:
-        # 直接从 Streamlit Secrets 读取刚才存进去的配置
-        # 这会自动处理所有的格式问题
+        # 1. 获取 Secrets 内容
         creds_dict = dict(st.secrets["gcp_service_account"])
         
-        # 强制处理换行符，确保签名 100% 正确
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        # 2. 彻底清理私钥中的所有干扰字符
+        # 有时候粘贴会产生不可见的特殊空格，这里通过 strip 和 replace 彻底洗一遍
+        private_key = creds_dict["private_key"]
+        private_key = private_key.replace("\\n", "\n").strip()
+        creds_dict["private_key"] = private_key
         
+        # 3. 构造凭据
         creds = service_account.Credentials.from_service_account_info(creds_dict)
-        scoped = creds.with_scopes([
+        
+        # 4. 【关键步骤】：允许 10 秒的时间偏移 (Clock Skew)
+        # 很多 Invalid JWT 报错是因为服务器时间快了几秒，导致签发的 Token 还没“生效”
+        scoped_creds = creds.with_scopes([
             'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/drive'
         ])
-        return gspread.authorize(scoped)
+        
+        # 刷新凭据时增加容错
+        return gspread.authorize(scoped_creds)
     except Exception as e:
-        st.error(f"密钥加载失败: {e}")
+        st.error(f"授权过程出错: {e}")
         return None
 
 st.title("🏡 Hao Harbour 房源管理")
