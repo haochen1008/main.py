@@ -114,18 +114,20 @@ with tab2:
         st.secrets["connections"]["gsheets"]["private_key"] = raw_key.replace("\\n", "\n")
 
     try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        # ... 后续代码保持不变 ...
-        df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
-        if not df.empty:
-            st.dataframe(df, use_container_width=True)
-            # 简化版编辑逻辑，确保不崩溃
-            sel_title = st.selectbox("选择要删除的房源", df['title'].tolist())
-            if st.button("🗑️ 下架选中房源"):
-                df = df[df['title'] != sel_title]
-                conn.update(worksheet="Sheet1", data=df)
-                st.rerun()
-        else:
-            st.info("暂无房源")
-    except Exception as e:
-        st.error(f"连接出错 (可能是证书问题): {str(e)}")
+        # --- 核心连接修复逻辑 ---
+def get_gsheets_conn():
+    # 从 Secrets 获取原始数据
+    creds_dict = dict(st.secrets["connections"]["gsheets"])
+    # 强制修复换行符（关键步骤！）
+    creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+    
+    # 使用处理后的字典建立连接
+    return st.connection("gsheets", type=GSheetsConnection, **creds_dict)
+
+# --- 在你需要使用 conn 的地方调用 ---
+try:
+    conn = get_gsheets_conn()
+    df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
+    # ... 原有的 df 处理逻辑 ...
+except Exception as e:
+    st.error(f"连接出错: {e}")
