@@ -42,6 +42,10 @@ def create_poster(files, title_text):
 tab1, tab2 = st.tabs(["🆕 发布房源", "⚙️ 管理中心"])
 
 # --- 发布逻辑 ---
+
+# 建议加在“房源图片链接”输入框的下面
+poster_link = st.text_input("海报图片链接 (Poster Link URL)", placeholder="请输入海报的图片地址...")
+
 with tab1:
     st.subheader("🚀 发布新房源")
     if "new_ai_desc" not in st.session_state: st.session_state.new_ai_desc = ""
