@@ -103,10 +103,19 @@ with tab1:
                 except Exception as e:
                     st.error(f"发布失败，请检查配置或表格: {str(e)}")
 
+# --- 在管理逻辑 tab2 的最开始修改 ---
 with tab2:
-    st.subheader("📊 房源管理")
+    st.subheader("📊 房源看板与快捷编辑")
+    
+    # 【核心修复代码】手动处理 key 中的换行符，防止 PEM 加载失败
+    if "gsheets" in st.secrets["connections"]:
+        raw_key = st.secrets["connections"]["gsheets"]["private_key"]
+        # 确保 \n 被正确识别为换行符
+        st.secrets["connections"]["gsheets"]["private_key"] = raw_key.replace("\\n", "\n")
+
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
+        # ... 后续代码保持不变 ...
         df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
         if not df.empty:
             st.dataframe(df, use_container_width=True)
