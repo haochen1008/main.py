@@ -53,7 +53,7 @@ if st.button("🔥 彻底重连并加载数据"):
     if client:
         try:
             # 尝试访问
-            sheet = client.open_by_key(SHEET_ID).sheet1
+            sheet = client.open_by_key(SHEET_ID).worksheet("Sheet1")
             data = sheet.get_all_records()
             st.success("连接成功！")
             st.dataframe(pd.DataFrame(data), use_container_width=True)
