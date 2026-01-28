@@ -43,9 +43,6 @@ tab1, tab2 = st.tabs(["🆕 发布房源", "⚙️ 管理中心"])
 
 # --- 发布逻辑 ---
 
-# 建议加在“房源图片链接”输入框的下面
-poster_link = st.text_input("海报图片链接 (Poster Link URL)", placeholder="请输入海报的图片地址...")
-
 with tab1:
     st.subheader("🚀 发布新房源")
     if "new_ai_desc" not in st.session_state: st.session_state.new_ai_desc = ""
@@ -57,6 +54,7 @@ with tab1:
         n_room = st.selectbox("房型", ["Studio", "1房", "2房", "3房", "4房+"])
         n_price = st.number_input("月租 (£/pcm)", value=3000)
         n_raw = st.text_area("粘贴英文原始描述", height=150)
+        poster_link = st.text_input("房源海报链接 (Poster URL)")
         if st.button("✨ 执行 AI 提取", key="btn_new_ai"):
             st.session_state.new_ai_desc = call_ai_logic(n_raw)
             
