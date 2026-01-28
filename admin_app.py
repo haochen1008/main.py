@@ -4,9 +4,8 @@ from google.oauth2 import service_account
 import gspread
 import json
 
-# 1. 强制清理：不要依赖任何变量名，直接重新定义
-# 请把【刚才新下载的 JSON】内容粘贴在下面
-MY_NEW_JSON = r'''
+# 这里的字符串请保持你截图 image_60cff9.png 中的样子，不要动它
+raw_json_str = r'''
 {
   "type": "service_account",
   "project_id": "canvas-voltage-278814",
@@ -22,36 +21,41 @@ MY_NEW_JSON = r'''
 }
 '''
 
-# 使用 cache_resource 确保凭据被物理刷新
-@st.cache_resource
-def get_verified_gspread_client():
-    info = json.loads(MY_NEW_JSON)
-    # 再次强调：这里一定要处理私钥中的换行符，否则会报 Signature 错误
-    if "private_key" in info:
-        info["private_key"] = info["private_key"].replace("\\n", "\n")
-    
-    creds = service_account.Credentials.from_service_account_info(info)
-    scoped = creds.with_scopes([
-        'https://www.googleapis.com/auth/spreadsheets',
-        'https://www.googleapis.com/auth/drive'
-    ])
-    return gspread.authorize(scoped)
+def get_gspread_client():
+    try:
+        # 1. 正常解析 JSON
+        info = json.loads(raw_json_str)
+        
+        # 2. 【最关键的一步】：针对你截图里的格式，强制转换换行符
+        # 你的 JSON 里是字面量的 \n，我们需要把它变成真正的换行符
+        if "private_key" in info:
+            info["private_key"] = info["private_key"].replace("\\n", "\n")
+        
+        creds = service_account.Credentials.from_service_account_info(info)
+        scoped = creds.with_scopes([
+            'https://www.googleapis.com/auth/spreadsheets', 
+            'https://www.googleapis.com/auth/drive'
+        ])
+        return gspread.authorize(scoped)
+    except Exception as e:
+        st.error(f"密钥解析失败: {e}")
+        return None
 
 st.title("🏡 Hao Harbour 数据管理")
 SHEET_ID = "1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74"
 
-if st.button("🔥 强制刷新数据并重置连接"):
-    # 点击按钮时，强制清除缓存，让程序必须重新读取 MY_NEW_JSON
+if st.button("🚀 立即刷新表格数据"):
+    # 清除 Streamlit 可能存在的缓存，强制重新读取上面的新 JSON
     st.cache_resource.clear()
     
-    client = get_verified_gspread_client()
-    try:
-        sheet = client.open_by_key(SHEET_ID).sheet1
-        data = sheet.get_all_records()
-        st.success(f"成功！当前登录账号: {client.auth._service_account_email}")
-        st.dataframe(pd.DataFrame(data))
-    except Exception as e:
-        # 如果还是报错，这里会打印出【当下真正导致失败的邮箱】
-        actual_email = json.loads(MY_NEW_JSON).get('client_email')
-        st.error(f"访问被拒绝！请确认表格是否分享给了: {actual_email}")
-        st.write(f"详细错误调试信息: {e}")
+    client = get_gspread_client()
+    if client:
+        try:
+            sheet = client.open_by_key(SHEET_ID).sheet1
+            data = sheet.get_all_records()
+            st.success(f"登录成功！当前账号: {client.auth._service_account_email}")
+            st.dataframe(pd.DataFrame(data), use_container_width=True)
+        except Exception as e:
+            # 如果还报拒绝，看这里打印出的详细信息
+            st.error(f"连接失败: {e}")
+            st.info(f"请检查表格是否已分享给: {json.loads(raw_json_str)['client_email']}")
