@@ -3,7 +3,7 @@ from PIL import Image, ImageDraw, ImageFont
 from streamlit_gsheets import GSheetsConnection
 import cloudinary.uploader
 import pandas as pd
-import io, requests
+import io, requests, cloudinary
 from datetime import datetime
 
 # --- 1. 基础配置 ---
@@ -17,7 +17,7 @@ try:
         api_secret=st.secrets["CLOUDINARY_API_SECRET"]
     )
 except:
-    st.error("Cloudinary 配置缺失，请检查 Secrets")
+    st.error("Cloudinary 配置缺失")
 
 DEEPSEEK_KEY = st.secrets.get("OPENAI_API_KEY", "")
 
@@ -25,22 +25,23 @@ DEEPSEEK_KEY = st.secrets.get("OPENAI_API_KEY", "")
 
 def get_gsheets_conn():
     """
-    终极连接函数：解决 PEM 加载错误及参数冲突问题。
+    加固连接函数：
+    1. 修复 PEM 换行符问题
+    2. 移除 type 冲突参数
+    3. 移除 spreadsheet 冲突参数
     """
-    # 1. 获取 Secrets 副本
     creds_dict = dict(st.secrets["connections"]["gsheets"])
     
-    # 2. 核心修复：处理私钥换行符 (解决 Unable to load PEM file)
+    # 修复证书格式
     if "private_key" in creds_dict:
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
     
-    # 3. 核心修复：移除冲突参数 (解决 multiple values for keyword argument 'type')
-    # 因为 st.connection 第一个参数是连接名称，第二个参数是类，
-    # 如果 creds_dict 里还有 type 字段，会导致冲突。
-    if "type" in creds_dict:
-        del creds_dict["type"]
+    # 移除连接器不需要的参数，防止 unexpected keyword argument 报错
+    unwanted_keys = ["type", "spreadsheet"]
+    for key in unwanted_keys:
+        if key in creds_dict:
+            del creds_dict[key]
     
-    # 4. 建立连接
     return st.connection("gsheets", type=GSheetsConnection, **creds_dict)
 
 def call_ai_logic(text):
@@ -78,7 +79,7 @@ def create_poster(files, title_text):
 # --- 3. UI 界面布局 ---
 tab1, tab2 = st.tabs(["🆕 发布房源", "⚙️ 管理中心"])
 
-# --- TAB 1: 发布房源逻辑 ---
+# --- TAB 1: 发布房源 ---
 with tab1:
     st.subheader("🚀 发布新房源")
     if "new_ai_desc" not in st.session_state:
@@ -86,31 +87,32 @@ with tab1:
         
     col_a, col_b = st.columns(2)
     with col_a:
-        n_title = st.text_input("房源名称 (例如: River Park Tower)")
+        n_title = st.text_input("房源名称")
         n_reg = st.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦", "其它"])
         n_room = st.selectbox("房型", ["Studio", "1房", "2房", "3房", "4房+"])
         n_price = st.number_input("月租 (£/pcm)", value=3000)
         n_raw = st.text_area("粘贴英文原始描述", height=150)
-        if st.button("✨ 执行 AI 提取", key="btn_new_ai"):
+        if st.button("✨ 执行 AI 提取"):
             st.session_state.new_ai_desc = call_ai_logic(n_raw)
             st.rerun()
             
     with col_b:
         n_desc = st.text_area("编辑 AI 提取结果", value=st.session_state.new_ai_desc, height=200)
-        n_pics = st.file_uploader("上传房源图片", accept_multiple_files=True)
-        if st.button("📤 确认发布并生成海报", type="primary"):
+        n_pics = st.file_uploader("上传图片", accept_multiple_files=True)
+        if st.button("📤 确认发布", type="primary"):
             if not n_pics:
-                st.error("请先上传图片！")
+                st.error("请上传图片")
             else:
                 try:
-                    with st.spinner("正在处理并上传..."):
+                    with st.spinner("正在发布..."):
                         poster = create_poster(n_pics, n_title)
                         buf = io.BytesIO()
                         poster.save(buf, format='JPEG')
                         url = cloudinary.uploader.upload(buf.getvalue())['secure_url']
                         
                         conn = get_gsheets_conn()
-                        df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
+                        # 读取数据时传入 spreadsheet URL
+                        df = conn.read(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], worksheet="Sheet1", ttl=0).dropna(how='all')
                         
                         new_row = {
                             "date": datetime.now().strftime("%Y-%m-%d"), 
@@ -120,30 +122,29 @@ with tab1:
                         }
                         
                         updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                        conn.update(worksheet="Sheet1", data=updated_df)
-                        st.success("房源发布成功！")
-                        st.session_state.new_ai_desc = ""
+                        conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], worksheet="Sheet1", data=updated_df)
+                        st.success("发布成功！")
                         st.rerun()
                 except Exception as e:
                     st.error(f"发布失败: {e}")
 
-# --- TAB 2: 管理中心逻辑 ---
+# --- TAB 2: 管理中心 ---
 with tab2:
-    st.subheader("📊 房源看板与快速管理")
+    st.subheader("📊 房源管理")
     try:
         conn = get_gsheets_conn()
-        df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
+        # 读取数据时传入 spreadsheet URL
+        df = conn.read(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], worksheet="Sheet1", ttl=0).dropna(how='all')
         
         if not df.empty:
             st.dataframe(df, use_container_width=True)
             st.write("---")
-            delete_title = st.selectbox("选择要下架的房源", df['title'].tolist())
+            delete_title = st.selectbox("选择下架房源", df['title'].tolist())
             if st.button("🗑️ 确认下架"):
                 df = df[df['title'] != delete_title]
-                conn.update(worksheet="Sheet1", data=df)
-                st.warning(f"房源 '{delete_title}' 已下架")
+                conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], worksheet="Sheet1", data=df)
                 st.rerun()
         else:
-            st.info("暂无房源数据。")
+            st.info("暂无数据")
     except Exception as e:
-        st.error(f"管理中心连接失败: {e}")
+        st.error(f"连接失败: {e}")
