@@ -10,27 +10,37 @@ from datetime import datetime
 st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
 
 # Cloudinary 认证
-cloudinary.config(
-    cloud_name=st.secrets["CLOUDINARY_CLOUD_NAME"],
-    api_key=st.secrets["CLOUDINARY_API_KEY"],
-    api_secret=st.secrets["CLOUDINARY_API_SECRET"]
-)
+try:
+    cloudinary.config(
+        cloud_name=st.secrets["CLOUDINARY_CLOUD_NAME"],
+        api_key=st.secrets["CLOUDINARY_API_KEY"],
+        api_secret=st.secrets["CLOUDINARY_API_SECRET"]
+    )
+except:
+    st.error("Cloudinary 配置缺失，请检查 Secrets")
+
 DEEPSEEK_KEY = st.secrets.get("OPENAI_API_KEY", "")
 
 # --- 2. 核心工具函数 ---
 
 def get_gsheets_conn():
     """
-    通过手动处理 private_key 中的换行符来解决 PEM 加载错误。
-    这解决了 "Unable to load PEM file" 的报错。
+    终极连接函数：解决 PEM 加载错误及参数冲突问题。
     """
-    # 拷贝一份 secrets 字典（因为 st.secrets 本身是只读的，不能修改）
+    # 1. 获取 Secrets 副本
     creds_dict = dict(st.secrets["connections"]["gsheets"])
-    # 将字符串中的 \\n 替换为真正的换行符 \n
+    
+    # 2. 核心修复：处理私钥换行符 (解决 Unable to load PEM file)
     if "private_key" in creds_dict:
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
     
-    # 返回带有修复后凭据的连接
+    # 3. 核心修复：移除冲突参数 (解决 multiple values for keyword argument 'type')
+    # 因为 st.connection 第一个参数是连接名称，第二个参数是类，
+    # 如果 creds_dict 里还有 type 字段，会导致冲突。
+    if "type" in creds_dict:
+        del creds_dict["type"]
+    
+    # 4. 建立连接
     return st.connection("gsheets", type=GSheetsConnection, **creds_dict)
 
 def call_ai_logic(text):
@@ -93,13 +103,12 @@ with tab1:
                 st.error("请先上传图片！")
             else:
                 try:
-                    with st.spinner("正在上传图片并同步至表格..."):
+                    with st.spinner("正在处理并上传..."):
                         poster = create_poster(n_pics, n_title)
                         buf = io.BytesIO()
                         poster.save(buf, format='JPEG')
                         url = cloudinary.uploader.upload(buf.getvalue())['secure_url']
                         
-                        # 使用修复后的连接函数
                         conn = get_gsheets_conn()
                         df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
                         
@@ -116,29 +125,25 @@ with tab1:
                         st.session_state.new_ai_desc = ""
                         st.rerun()
                 except Exception as e:
-                    st.error(f"发布过程中出错: {e}")
+                    st.error(f"发布失败: {e}")
 
 # --- TAB 2: 管理中心逻辑 ---
 with tab2:
     st.subheader("📊 房源看板与快速管理")
     try:
-        # 使用修复后的连接函数
         conn = get_gsheets_conn()
         df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
         
         if not df.empty:
-            # 数据展示
             st.dataframe(df, use_container_width=True)
-            
             st.write("---")
-            # 简单删除逻辑
             delete_title = st.selectbox("选择要下架的房源", df['title'].tolist())
             if st.button("🗑️ 确认下架"):
                 df = df[df['title'] != delete_title]
                 conn.update(worksheet="Sheet1", data=df)
-                st.warning(f"房源 '{delete_title}' 已移除")
+                st.warning(f"房源 '{delete_title}' 已下架")
                 st.rerun()
         else:
-            st.info("目前没有房源数据。")
+            st.info("暂无房源数据。")
     except Exception as e:
         st.error(f"管理中心连接失败: {e}")
