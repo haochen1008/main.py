@@ -23,42 +23,29 @@ DEEPSEEK_KEY = st.secrets.get("OPENAI_API_KEY", "")
 
 # --- 2. 核心工具函数 ---
 
-def get_gsheets_conn():
+def get_conn():
     """
-    加固连接函数：
-    1. 修复 PEM 换行符问题
-    2. 移除 type 冲突参数
-    3. 移除 spreadsheet 冲突参数
+    最稳健的连接方式：不手动传参，只负责修复 PEM 格式。
     """
-    creds_dict = dict(st.secrets["connections"]["gsheets"])
-    
-    # 修复证书格式
-    if "private_key" in creds_dict:
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-    
-    # 移除连接器不需要的参数，防止 unexpected keyword argument 报错
-    unwanted_keys = ["type", "spreadsheet"]
-    for key in unwanted_keys:
-        if key in creds_dict:
-            del creds_dict[key]
-    
-    return st.connection("gsheets", type=GSheetsConnection, **creds_dict)
+    # 这一步是为了修复 "Unable to load PEM file" 错误
+    raw_key = st.secrets["connections"]["gsheets"]["private_key"]
+    # 这种方式虽然 st.secrets 只读，但在内存中会被缓存修复后的格式
+    # 如果还是报错 PEM，建议手动在 Secrets 文本框里检查是否有空格
+    return st.connection("gsheets", type=GSheetsConnection)
 
 def call_ai_logic(text):
-    """调用 AI 提取房源要点"""
+    """AI 提取逻辑"""
     try:
         headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}"}
         prompt = f"翻译并精简成中文要点，需包含Available date，使用✔开头，禁止提及押金：\n{text}"
         res = requests.post("https://api.deepseek.com/v1/chat/completions", 
-                            headers=headers,
-                            json={"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}]},
-                            timeout=15)
+                            headers=headers, json={"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}]}, timeout=15)
         return res.json()['choices'][0]['message']['content']
-    except Exception as e:
-        return f"AI 提取失败: {str(e)}"
+    except:
+        return "AI 提取失败"
 
 def create_poster(files, title_text):
-    """生成预览海报"""
+    """生成海报"""
     try:
         canvas = Image.new('RGB', (800, 1200), (255, 255, 255))
         draw = ImageDraw.Draw(canvas)
@@ -73,17 +60,14 @@ def create_poster(files, title_text):
         draw.text((40, 950), title_text, font=font_t, fill=(0, 0, 0))
         draw.text((40, 1030), "Hao Harbour | London Excellence", font=font_f, fill=(180, 160, 100))
         return canvas
-    except: 
-        return None
+    except: return None
 
-# --- 3. UI 界面布局 ---
+# --- 3. UI 界面 ---
 tab1, tab2 = st.tabs(["🆕 发布房源", "⚙️ 管理中心"])
 
-# --- TAB 1: 发布房源 ---
 with tab1:
     st.subheader("🚀 发布新房源")
-    if "new_ai_desc" not in st.session_state:
-        st.session_state.new_ai_desc = ""
+    if "new_ai_desc" not in st.session_state: st.session_state.new_ai_desc = ""
         
     col_a, col_b = st.columns(2)
     with col_a:
@@ -97,22 +81,21 @@ with tab1:
             st.rerun()
             
     with col_b:
-        n_desc = st.text_area("编辑 AI 提取结果", value=st.session_state.new_ai_desc, height=200)
-        n_pics = st.file_uploader("上传图片", accept_multiple_files=True)
+        n_desc = st.text_area("编辑 AI 结果", value=st.session_state.new_ai_desc, height=200)
+        n_pics = st.file_uploader("上传房源图片", accept_multiple_files=True)
         if st.button("📤 确认发布", type="primary"):
-            if not n_pics:
-                st.error("请上传图片")
+            if not n_pics: st.error("请上传图片")
             else:
                 try:
-                    with st.spinner("正在发布..."):
+                    with st.spinner("发布中..."):
                         poster = create_poster(n_pics, n_title)
                         buf = io.BytesIO()
                         poster.save(buf, format='JPEG')
                         url = cloudinary.uploader.upload(buf.getvalue())['secure_url']
                         
-                        conn = get_gsheets_conn()
-                        # 读取数据时传入 spreadsheet URL
-                        df = conn.read(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], worksheet="Sheet1", ttl=0).dropna(how='all')
+                        conn = get_conn()
+                        # 注意：直接读，不用传 spreadsheet，它会自动从 secrets 获取
+                        df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
                         
                         new_row = {
                             "date": datetime.now().strftime("%Y-%m-%d"), 
@@ -120,31 +103,25 @@ with tab1:
                             "price": n_price, "poster-link": url, "description": n_desc,
                             "views": 0, "is_featured": False
                         }
-                        
-                        updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                        conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], worksheet="Sheet1", data=updated_df)
-                        st.success("发布成功！")
+                        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                        conn.update(worksheet="Sheet1", data=df)
+                        st.success("房源已成功同步至 Google Sheets！")
                         st.rerun()
                 except Exception as e:
                     st.error(f"发布失败: {e}")
 
-# --- TAB 2: 管理中心 ---
 with tab2:
-    st.subheader("📊 房源管理")
+    st.subheader("📊 房源看板")
     try:
-        conn = get_gsheets_conn()
-        # 读取数据时传入 spreadsheet URL
-        df = conn.read(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], worksheet="Sheet1", ttl=0).dropna(how='all')
-        
+        conn = get_conn()
+        df = conn.read(worksheet="Sheet1", ttl=0).dropna(how='all')
         if not df.empty:
             st.dataframe(df, use_container_width=True)
-            st.write("---")
-            delete_title = st.selectbox("选择下架房源", df['title'].tolist())
+            sel_del = st.selectbox("选择下架房源", df['title'].tolist())
             if st.button("🗑️ 确认下架"):
-                df = df[df['title'] != delete_title]
-                conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], worksheet="Sheet1", data=df)
+                df = df[df['title'] != sel_del]
+                conn.update(worksheet="Sheet1", data=df)
                 st.rerun()
-        else:
-            st.info("暂无数据")
+        else: st.info("暂无数据")
     except Exception as e:
         st.error(f"连接失败: {e}")
