@@ -4,8 +4,9 @@ from google.oauth2 import service_account
 import gspread
 import json
 
-# 这里的字符串请保持你截图 image_60cff9.png 中的样子，不要动它
-raw_json_str = r'''
+# --- 核心凭据区 ---
+# 请将你 image_60cff9.png 中看到的完整内容【原封不动】贴在下面
+MY_JSON_DATA = r'''
 {
   "type": "service_account",
   "project_id": "canvas-voltage-278814",
@@ -21,41 +22,43 @@ raw_json_str = r'''
 }
 '''
 
-def get_gspread_client():
+def get_authorized_client():
     try:
-        # 1. 正常解析 JSON
-        info = json.loads(raw_json_str)
+        # 解析 JSON
+        info = json.loads(MY_JSON_DATA)
         
-        # 2. 【最关键的一步】：针对你截图里的格式，强制转换换行符
-        # 你的 JSON 里是字面量的 \n，我们需要把它变成真正的换行符
+        # 【关键修正】：手动强制转换那些烦人的 \n 字符
+        # 这步如果不做，Google 就会一直报 Invalid JWT Signature
         if "private_key" in info:
             info["private_key"] = info["private_key"].replace("\\n", "\n")
-        
+            
         creds = service_account.Credentials.from_service_account_info(info)
         scoped = creds.with_scopes([
-            'https://www.googleapis.com/auth/spreadsheets', 
+            'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/drive'
         ])
         return gspread.authorize(scoped)
     except Exception as e:
-        st.error(f"密钥解析失败: {e}")
+        st.error(f"密钥解析阶段出错: {e}")
         return None
 
+# --- 页面逻辑 ---
 st.title("🏡 Hao Harbour 数据管理")
 SHEET_ID = "1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74"
 
-if st.button("🚀 立即刷新表格数据"):
-    # 清除 Streamlit 可能存在的缓存，强制重新读取上面的新 JSON
+if st.button("🚀 强制重连并加载数据"):
+    # 清除 Streamlit 可能存在的旧缓存
     st.cache_resource.clear()
     
-    client = get_gspread_client()
+    client = get_authorized_client()
     if client:
         try:
+            # 尝试打开表格
             sheet = client.open_by_key(SHEET_ID).sheet1
             data = sheet.get_all_records()
-            st.success(f"登录成功！当前账号: {client.auth._service_account_email}")
+            st.success(f"连接成功！当前账号: {info['client_email']}")
             st.dataframe(pd.DataFrame(data), use_container_width=True)
         except Exception as e:
-            # 如果还报拒绝，看这里打印出的详细信息
-            st.error(f"连接失败: {e}")
-            st.info(f"请检查表格是否已分享给: {json.loads(raw_json_str)['client_email']}")
+            # 只有当签名（Signature）通过了，这里的权限报错才有参考价值
+            st.error(f"Google 拒绝了访问请求: {e}")
+            st.info(f"请再次确认此邮箱已被设为 Editor (如图 image_607657): \n{json.loads(MY_JSON_DATA)['client_email']}")
