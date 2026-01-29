@@ -3,3 +3,4 @@ pandas
 cloudinary
 gspread
 google-auth
+streamlit-gsheets
