@@ -3,49 +3,69 @@ import gspread
 from google.oauth2 import service_account
 import pandas as pd
 
-# 页面基础设置
-st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
-st.title("🏡 Hao Harbour 数据管理系统")
+st.set_page_config(page_title="Hao Harbour 管理", layout="wide")
+st.title("🏡 Hao Harbour 数据管理")
 
-def init_connection():
+def load_data_final_attempt():
     try:
-        # 获取 Secrets
-        creds_dict = dict(st.secrets["gcp_service_account"])
+        # 1. 从 Secrets 读取基础配置
+        creds_info = dict(st.secrets["gcp_service_account"])
         
-        # 强制处理私钥格式：将粘贴时可能出现的 "\\n" 还原为真正的换行
-        # 这是修复 InvalidByte(1624, 61) 报错的核心逻辑
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        # 2. 这里的私钥片段是根据你提供的 JSON 源码纯手工拆解的
+        # 这样避开了所有的换行符转义和空格问题
+        key_parts = [
+            "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDQoHCtdlGu7q8q",
+            "aNZyjjzYBg3TX1mfTwUjaMHQJXmKlzK1PQdDrvwFRZTbDV3ir6fbITCfRkmGXvHh",
+            "jSzQ3ElKxvvFIqxZufeHyVfrczaoTsCr5Epg6dKxiF4CoV4ivQGD/6qPy/VIzkul",
+            "gH1KYB8Y+mphhfyQ2IurAWAjp054vM4JhgFYq6yA4T/riZjYt4rpnsQyD/Dky/7H",
+            "s2nJ+l8XNJhWKUyeKAMymSgwcn9Sd7Et9YqPL65DXcp5eaYmhVkYy9kMTZkIxb/u",
+            "946WrIbPx0BmS7l1h83nqX2zf7Vt3jzjitiu0kCSl6D2V/LP3rWQP/EAM8TicbZm",
+            "mvE4nErZAgMBAAECggEAHOX8daqsCeU6Ek/PVLLrLqk4BQ1yJqUVeyApqKFoQpBL",
+            "D9vSQ8fbVQecZPNnC911DN9+ErHzwU8phiq+CHhbFqaVfWseIJen+AEl0pF1Ar9V",
+            "5PmMa/w3mSvgidC8b2dq7FPf1mdUJK+evuAbes/xvs4BKl0a7R1xy1A3dvjX39VX",
+            "LWQ9MSsGA8CPy6tkLTptYlWy4QUwVo9dNZq4RphdWNvzp9lQ/FCjEq10efsapmg6",
+            "v0KKSTnqKeQ96H0RV1fCPEjQn01Lx8kb+2D4MvbP2/Peme0OaMompqqrdbZjCPY/",
+            "ycxZldHNQaloOHWAl5MDtt2vr/PqZPT44+zCHc1u+QKBgQD4GkVfZRnyhbpyezDM",
+            "08Kc6Wjrt4IDx0up4tLsCZM8iQwJQkSJrflkWi63DHmYAvo+OxpsLp6Gwx4lWRxI",
+            "9GBVw4g598PJJVgV4LdP+xt76afGML3lEpKqcbWQenUoiu/YieTxOHwlcqVdwMWQ",
+            "HmxYmdM229e2XspMSXy9h4NNhwKBgQDXRH1NexezIoCpHFVq0xUBCuVUFmLMWpdK",
+            "/ylOntOmfztwO4P0lKfI/t2igaomt84ub9vO6oQWMQ0sLx0vgA749EhjzOma9GE0",
+            "169ryTjds21LO9L3eMTDVPpaSjDwDmElH9WF8RSJ6OGSSTT1E9HP6Mr0wHx6Gd2B",
+            "qecKneC8nwKBgQC58BZltAOKOqbM/X5JQ7rqlhNH9TO/WTFflNq2g0aRa7RVjBCJ",
+            "jpUFnIC+Nt86CaE52lmnEhlErh59pxcHpf48yFnj98gHi7FEVDGOA4dJioduhUEL",
+            "2KuKicWlDeGYDOhLxKyMC+Ueu5krdjmaFPLmRAKDbqdvygKawch20oSZKQKBgAmZ",
+            "CiUsOdBI14eytbQ/mQ4k2Di5jsoht+EmI0dYGYOw5IuKe8Wp4xk5E9StB1MWmuDD",
+            "J/+/wQfkQ/wWVazKfuBms9uPRVMdVkAu5alenWR1HYhfMHbMMamr3kWsTSZG3dnz",
+            "42dHam0DrxsAnJXYvmAQtwvWkTY4dQHU+3Iju+NtAoGAKG7mBPEb9POKjSFkmqBG",
+            "1O3hB4BjLyKTRFMab4fUWKdKQ6rxDuGPLl/ozGtcrxC3z+Ue4yP3IwA7uM87T/se",
+            "nPDIUu6pQdxwN+MVxxKST3Kb+5Ll5Gbc94W7GeFaizkmKMcm6otmFqvsIiy3bQFWE",
+            "O2UeSMUALckwZGZIfJa0X+o="
+        ]
         
-        # 授权并连接
-        creds = service_account.Credentials.from_service_account_info(creds_dict)
-        scoped_creds = creds.with_scopes([
+        # 3. 缝合私钥
+        inner_key = "\n".join(key_parts)
+        creds_info["private_key"] = f"-----BEGIN PRIVATE KEY-----\n{inner_key}\n-----END PRIVATE KEY-----"
+        
+        # 4. 授权并建立客户端
+        credentials = service_account.Credentials.from_service_account_info(creds_info)
+        scoped = credentials.with_scopes([
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive"
         ])
-        return gspread.authorize(scoped_creds)
+        gc = gspread.authorize(scoped)
+        
+        # 5. 打开表格并读取
+        sh = gc.open_by_key("1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74")
+        return pd.DataFrame(sh.sheet1.get_all_records())
+        
     except Exception as e:
         st.error(f"❌ 认证配置出错: {e}")
         return None
 
-# 初始化客户端
-client = init_connection()
-
-if client:
-    try:
-        # 使用你截图中的 Sheet ID
-        sheet_id = "1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74"
-        sh = client.open_by_key(sheet_id)
-        
-        # 获取第一个工作表
-        worksheet = sh.get_worksheet(0)
-        
-        # UI 按钮：点击刷新
-        if st.button("🔄 刷新房源数据"):
-            data = worksheet.get_all_records()
-            df = pd.DataFrame(data)
-            st.success("✅ 数据同步成功！")
-            st.dataframe(df, use_container_width=True)
-            
-    except Exception as e:
-        st.error(f"❌ 无法打开表格: {e}")
-        st.info("提示：请确认你的 Google Sheet 已经向 streamlit-bot 账号开启了 Editor 权限。")
+# 执行逻辑
+if st.button("🚀 暴力同步数据"):
+    with st.spinner("正在解析私钥并连接..."):
+        df = load_data_final_attempt()
+        if df is not None:
+            st.success("🎉 终于连接成功了！")
+            st.dataframe(df)
