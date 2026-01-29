@@ -1,35 +1,48 @@
 import streamlit as st
-import gspread
 from google.oauth2 import service_account
+import gspread
 import pandas as pd
 
-def get_gc_client():
+def get_google_client():
     try:
-        # 读取 Secrets
-        info = dict(st.secrets["gcp_service_account"])
+        # 获取 Secrets
+        creds_info = dict(st.secrets["gcp_service_account"])
         
-        # 强制清理私钥：解决 InvalidLength(1625) 的关键
-        # 有时候 Secrets 还是会把内容读成带字面量 \n 的字符串
-        info["private_key"] = info["private_key"].replace("\\n", "\n").strip()
+        # 核心修复：清理私钥。针对 InvalidByte(1624, 61) 报错
+        # 1. 将字符串中的字面量 "\n" 替换为真实的换行
+        # 2. 去除所有不该存在的空格
+        pk = creds_info["private_key"]
+        pk = pk.replace("\\n", "\n").replace(" ", "").strip()
         
-        creds = service_account.Credentials.from_service_account_info(info)
-        scoped = creds.with_scopes([
+        # 3. 重新对齐头部和尾部，确保格式严格符合 PEM 标准
+        if "-----BEGINPRIVATEKEY-----" in pk:
+            pk = pk.replace("-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----\n")
+        if "-----ENDPRIVATEKEY-----" in pk:
+            pk = pk.replace("-----ENDPRIVATEKEY-----", "\n-----END PRIVATE KEY-----")
+            
+        creds_info["private_key"] = pk
+        
+        # 授权逻辑
+        credentials = service_account.Credentials.from_service_account_info(creds_info)
+        scoped_creds = credentials.with_scopes([
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive"
         ])
-        return gspread.authorize(scoped)
+        return gspread.authorize(scoped_creds)
     except Exception as e:
-        st.error(f"连接失败: {e}")
+        st.error(f"密钥解析终极报错: {e}")
         return None
 
-# 执行读取
-client = get_gc_client()
-if client:
-    try:
-        # 表格 ID 依然使用你给的那个
-        sh = client.open_by_key("1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74")
-        df = pd.DataFrame(sh.get_worksheet(0).get_all_records())
-        st.success("🎉 数据加载成功！")
-        st.dataframe(df)
-    except Exception as e:
-        st.error(f"密钥解析过了，但读取表格报错: {e}")
+# --- UI 展示 ---
+st.title("🏡 Hao Harbour 数据管理")
+if st.button("🚀 点击同步表格数据"):
+    gc = get_google_client()
+    if gc:
+        try:
+            # 使用截图中的表格 ID
+            sh = gc.open_by_key("1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74")
+            data = sh.sheet1.get_all_records()
+            st.success("🎉 终于成功了！")
+            st.dataframe(pd.DataFrame(data))
+        except Exception as e:
+            st.error(f"验证通过但读取表格报错: {e}")
