@@ -3,37 +3,41 @@ import gspread
 from google.oauth2 import service_account
 import pandas as pd
 
-def safe_connect():
+# 设置页面
+st.set_page_config(page_title="Hao Harbour 管理", layout="wide")
+st.title("🏡 Hao Harbour 数据管理")
+
+def load_data():
     try:
-        # 获取 Secrets
-        info = dict(st.secrets["gcp_service_account"])
+        # 直接获取 Secrets 字典
+        # 此时不再手动处理 private_key，让库自己去读刚才在 Secrets 里贴好的原始格式
+        creds_info = dict(st.secrets["gcp_service_account"])
         
-        # 核心：将粘贴进去的字面量 \n 替换为真实的系统换行符
-        # 这一步是修复 InvalidByte(1624, 61) 的唯一方法
-        clean_key = info["private_key"].replace("\\n", "\n")
-        info["private_key"] = clean_key
-        
-        # 授权
-        creds = service_account.Credentials.from_service_account_info(info)
-        scoped = creds.with_scopes([
+        # 建立授权
+        credentials = service_account.Credentials.from_service_account_info(creds_info)
+        scoped_credentials = credentials.with_scopes([
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive"
         ])
-        return gspread.authorize(scoped)
+        gc = gspread.authorize(scoped_credentials)
+        
+        # 打开你的表格
+        sh = gc.open_by_key("1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74")
+        worksheet = sh.get_worksheet(0)
+        
+        # 读取数据
+        data = worksheet.get_all_records()
+        return pd.DataFrame(data)
+        
     except Exception as e:
-        st.error(f"连接失败: {e}")
+        # 如果报错，我们打印出报错的类型，方便精准定位
+        st.error(f"❌ 连接失败原因: {type(e).__name__} - {e}")
         return None
 
-st.title("🏡 Hao Harbour 数据管理")
-SHEET_ID = "1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74"
-
-if st.button("🚀 深度连接"):
-    gc = safe_connect()
-    if gc:
-        try:
-            sh = gc.open_by_key(SHEET_ID)
-            df = pd.DataFrame(sh.sheet1.get_all_records())
-            st.success("终于连接成功了！")
-            st.dataframe(df)
-        except Exception as e:
-            st.error(f"密钥对了，但读取表格失败: {e}")
+# UI 交互
+if st.button("🚀 立即拉取房源数据"):
+    with st.spinner("正在连接 Google Sheets..."):
+        df = load_data()
+        if df is not None:
+            st.success("✅ 数据拉取成功！")
+            st.dataframe(df, use_container_width=True)
