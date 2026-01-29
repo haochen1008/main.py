@@ -1,8 +1,13 @@
 import streamlit as st
 import gspread
 from google.oauth2 import service_account
+import pandas as pd
+from openai import OpenAI
 
-# 1. 构造私钥（物理拼接，避开所有转义问题）
+st.set_page_config(page_title="Hao Harbour 综合管理", layout="wide")
+st.title("🏡 Hao Harbour 数据与 AI 管理系统")
+
+# 1. 物理拼装私钥（确保认证不报错）
 key_parts = [
     "MIIEugIBADANBgkqhkiG9w0BAQEFAASCBKQwggSgAgEAAoIBAQCRayoKdXw38HlF",
     "6J23Bbyq7zAzCWQ5OAtzk0/fOhbnFUHJTMOF1njbBw92x9etYoDt5WbBUwbexaQE",
@@ -32,29 +37,36 @@ key_parts = [
     "6FI0qUia8eWEUNibK1k="
 ]
 
-def check_connection():
+def get_worksheet():
     try:
-        # 使用你 Secrets 里的基本信息
         info = dict(st.secrets["gcp_service_account"])
         info["private_key"] = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(key_parts) + "\n-----END PRIVATE KEY-----"
-        
         creds = service_account.Credentials.from_service_account_info(info)
-        gc = gspread.authorize(creds.with_scopes([
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]))
+        gc = gspread.authorize(creds.with_scopes(["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]))
         
-        # 尝试列出该账号能看到的所有文件
-        files = gc.list_spreadsheet_files()
-        if not files:
-            st.warning("⚠️ 认证成功，但该服务账号名下看不到任何表格。请确认已在 Google Sheet 中分享权限给 client_email。")
-        else:
-            st.success(f"✅ 成功！账号目前能看到的表格有：{[f['name'] for f in files]}")
-            # 尝试打开目标表格
-            sh = gc.open_by_key("1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74")
-            st.info("🎯 目标表格已成功定位！")
-            
+        # --- 重点：直接用名字打开，不用手动填 ID 避免 0 和 O 输错 ---
+        sh = gc.open("Hao_Harbour_DB") 
+        return sh.get_worksheet(0)
     except Exception as e:
-        st.error(f"❌ 核心报错: {e}")
+        st.error(f"❌ 依然报错: {e}")
+        return None
 
-check_connection()
+# 初始化界面
+ws = get_worksheet()
+if ws:
+    data = ws.get_all_records()
+    df = pd.DataFrame(data)
+    st.success("🎉 终于大功告成了！ID 的 0 和 O 问题已通过名字识别完美绕过！")
+    
+    tab1, tab2 = st.tabs(["📊 实时看板", "🤖 AI 分析"])
+    
+    with tab1:
+        st.dataframe(df, use_container_width=True)
+        
+    with tab2:
+        if st.button("🚀 使用 DeepSeek 分析"):
+            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"], base_url=st.secrets["OPENAI_BASE_URL"])
+            # 获取第一行的描述作为测试
+            desc = df.iloc[0].get('description', '无描述')
+            res = client.chat.completions.create(model="deepseek-chat", messages=[{"role":"user","content":f"总结房源: {desc}"}])
+            st.write(res.choices[0].message.content)
