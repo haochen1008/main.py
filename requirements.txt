@@ -2,5 +2,4 @@ gspread
 google-auth
 pandas
 openai
-pillow
 requests
