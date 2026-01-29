@@ -5,7 +5,7 @@ import pandas as pd
 from openai import OpenAI
 from datetime import datetime
 
-# --- 1. 核心认证 (物理拼装版，确保稳定) ---
+# --- 1. 核心认证 (保持物理拼装，确保连接稳定) ---
 def get_worksheet():
     try:
         info = dict(st.secrets["gcp_service_account"])
@@ -13,6 +13,7 @@ def get_worksheet():
         info["private_key"] = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(key_parts) + "\n-----END PRIVATE KEY-----"
         creds = service_account.Credentials.from_service_account_info(info)
         gc = gspread.authorize(creds.with_scopes(["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]))
+        # 按名称打开确保不因 ID 的 0/O 混淆出错
         return gc.open("Hao_Harbour_DB").get_worksheet(0)
     except: return None
 
@@ -20,7 +21,6 @@ def get_worksheet():
 st.title("🏡 Hao Harbour 房源智能管理")
 tab1, tab2 = st.tabs(["✨ 智能发布海报", "🗄️ 房源库管理"])
 
-# 初始化 Session State (用于存储 AI 提取的临时文案)
 if 'zh_summary' not in st.session_state:
     st.session_state.zh_summary = ""
 
@@ -41,58 +41,92 @@ with tab1:
                     client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"], base_url=st.secrets["OPENAI_BASE_URL"])
                     ai_res = client.chat.completions.create(
                         model="deepseek-chat",
-                        messages=[{"role": "system", "content": "你是一个伦敦房产专家。请把英文描述翻译成吸引人的中文总结，包含户型、交通、租金和亮点。使用 Emoji。"},
+                        messages=[{"role": "system", "content": "你是一个伦敦房产专家。请把英文描述总结成吸引人的中文总结，包含户型、交通、租金和亮点。使用 Emoji。"},
                                   {"role": "user", "content": en_desc}]
                     )
                     st.session_state.zh_summary = ai_res.choices[0].message.content
             else:
                 st.warning("请先粘贴英文描述")
 
-        # 允许用户编辑 AI 生成的结果
         final_zh_desc = st.text_area("3. 编辑/确认中文文案", value=st.session_state.zh_summary, height=200)
-        
         uploaded_files = st.file_uploader("4. 添加照片 (最多6张)", accept_multiple_files=True, type=['png', 'jpg', 'jpeg'])
         
         if st.button("🚀 正式发布并存档"):
             ws = get_worksheet()
             if ws:
-                # 写入格式: 日期, 名称, 区域, 户型(略), 价格, 图片链接(略), 描述, 精选(0)
+                # 写入表格
                 ws.append_row([str(datetime.now().date()), title, region, "待定", price, "", final_zh_desc, 0])
                 st.balloons()
-                st.success("房源已成功发布并存档！")
+                st.success("房源已成功发布！")
 
-# --- Tab 2: 房源管理 ---
+# --- Tab 2: 房源管理 (带搜索功能) ---
 with tab2:
     ws = get_worksheet()
     if ws:
-        data = ws.get_all_records()
-        df = pd.DataFrame(data)
+        # 获取最新数据并转为 DataFrame
+        all_records = ws.get_all_records()
+        df_full = pd.DataFrame(all_records)
         
-        for index, row in df.iterrows():
-            with st.expander(f"{'⭐' if row.get('is_featured') == 1 else ''} {row['title']} - {row['region']} (£{row['price']})"):
-                # 编辑模式
-                with st.form(key=f"edit_form_{index}"):
-                    new_price = st.number_input("修改租金", value=int(row['price']), key=f"p_{index}")
-                    new_desc = st.text_area("修改描述", value=row['description'], key=f"d_{index}")
-                    
-                    c1, c2, c3 = st.columns(3)
-                    save_btn = c1.form_submit_button("💾 保存修改")
-                    feat_btn = c2.form_submit_button("⭐ 切换精选")
-                    del_btn = c3.form_submit_button("🗑️ 删除房源")
-                    
-                    if save_btn:
-                        ws.update_cell(index + 2, 5, new_price) # 第5列是 price
-                        ws.update_cell(index + 2, 7, new_desc)  # 第7列是 description
-                        st.success("修改已保存")
-                        st.rerun()
+        # --- 🔍 搜索功能模块 ---
+        st.subheader("🔍 房源快速查找")
+        search_col1, search_col2 = st.columns([3, 1])
+        keyword = search_col1.text_input("输入房源名称或区域关键词", placeholder="关键词搜索...")
+        sort_order = search_col2.selectbox("排序方式", ["最新发布", "租金从高到低", "租金从低到高"])
+        
+        # 执行过滤逻辑
+        if keyword:
+            filtered_df = df_full[
+                df_full['title'].str.contains(keyword, case=False) | 
+                df_full['region'].str.contains(keyword, case=False)
+            ]
+        else:
+            filtered_df = df_full
+
+        # 执行排序逻辑
+        if sort_order == "租金从高到低":
+            filtered_df = filtered_df.sort_values(by="price", ascending=False)
+        elif sort_order == "租金从低到高":
+            filtered_df = filtered_df.sort_values(by="price", ascending=True)
+        else:
+            filtered_df = filtered_df.iloc[::-1] # 默认倒序显示最新
+
+        st.divider()
+        
+        # --- 列表显示与编辑 ---
+        if filtered_df.empty:
+            st.info("未找到匹配房源")
+        else:
+            for _, row in filtered_df.iterrows():
+                # 计算在原始表格中的行号 (DataFrame 索引 + 2)
+                # 注意：如果排序了，索引会变，所以需要根据 title 或唯一 ID 定位
+                original_idx = df_full[df_full['title'] == row['title']].index[0] + 2
+                
+                expander_title = f"{'⭐' if row.get('is_featured') == 1 else ''} {row['title']} | {row['region']} | £{row['price']}"
+                with st.expander(expander_title):
+                    with st.form(key=f"edit_form_{original_idx}"):
+                        c1, c2 = st.columns(2)
+                        edit_price = c1.number_input("修改租金", value=int(row['price']), key=f"p_{original_idx}")
+                        edit_region = c2.selectbox("修改区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"], 
+                                                 index=["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"].index(row['region']),
+                                                 key=f"r_{original_idx}")
                         
-                    if feat_btn:
-                        new_status = 0 if row.get('is_featured') == 1 else 1
-                        ws.update_cell(index + 2, 8, new_status) # 第8列是 is_featured
-                        st.rerun()
+                        edit_desc = st.text_area("修改中文描述", value=row['description'], key=f"d_{original_idx}")
                         
-                    if del_btn:
-                        ws.delete_rows(index + 2)
-                        st.rerun()
+                        btn_c1, btn_c2, btn_c3 = st.columns(3)
+                        if btn_c1.form_submit_button("💾 保存修改"):
+                            ws.update_cell(original_idx, 5, edit_price)
+                            ws.update_cell(original_idx, 3, edit_region)
+                            ws.update_cell(original_idx, 7, edit_desc)
+                            st.success("已更新")
+                            st.rerun()
+                            
+                        if btn_c2.form_submit_button("⭐ 切换精选"):
+                            new_status = 0 if row.get('is_featured') == 1 else 1
+                            ws.update_cell(original_idx, 8, new_status)
+                            st.rerun()
+                            
+                        if btn_c3.form_submit_button("🗑️ 删除房源"):
+                            ws.delete_rows(original_idx)
+                            st.rerun()
     else:
         st.error("数据连接失败。")
