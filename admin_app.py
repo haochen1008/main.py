@@ -3,17 +3,15 @@ import gspread
 from google.oauth2 import service_account
 import pandas as pd
 from openai import OpenAI
-import requests
+from datetime import datetime
 
-# 页面配置
-st.set_page_config(page_title="Hao Harbour 房源智能管理", layout="wide")
-st.title("🏡 Hao Harbour 数据与 AI 管理系统")
+st.set_page_config(page_title="Hao Harbour 房源发布系统", layout="wide")
 
-# --- 1. 认证与连接 (使用已验证成功的逻辑) ---
+# --- 1. 核心连接逻辑 ---
 def get_worksheet():
     try:
         info = dict(st.secrets["gcp_service_account"])
-        # 物理拼装私钥，彻底避开转义字符坑
+        # 物理拼装私钥，确保格式绝对正确
         key_parts = [
             "MIIEugIBADANBgkqhkiG9w0BAQEFAASCBKQwggSgAgEAAoIBAQCRayoKdXw38HlF",
             "6J23Bbyq7zAzCWQ5OAtzk0/fOhbnFUHJTMOF1njbBw92x9etYoDt5WbBUwbexaQE",
@@ -43,90 +41,88 @@ def get_worksheet():
             "6FI0qUia8eWEUNibK1k="
         ]
         info["private_key"] = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(key_parts) + "\n-----END PRIVATE KEY-----"
-        
         creds = service_account.Credentials.from_service_account_info(info)
-        gc = gspread.authorize(creds.with_scopes([
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]))
-        # 使用名称直接打开，绕过 ID 拼写错误
-        sh = gc.open("Hao_Harbour_DB") 
-        return sh.get_worksheet(0)
+        gc = gspread.authorize(creds.with_scopes(["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]))
+        return gc.open("Hao_Harbour_DB").get_worksheet(0)
     except Exception as e:
-        st.error(f"❌ 数据连接中断: {e}")
+        st.error(f"连接失败: {e}")
         return None
 
-# --- 2. DeepSeek AI 解析逻辑 ---
-def deepseek_analyze(text):
-    try:
-        client = OpenAI(
-            api_key=st.secrets["OPENAI_API_KEY"], 
-            base_url=st.secrets["OPENAI_BASE_URL"]
-        )
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": "你是一个房产分析专家，请从描述中提取：租金(月/周)、户型、邮编、起租日期。用简洁的列表回复。"},
-                {"role": "user", "content": text}
-            ]
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"AI 暂时不可用: {e}"
+# --- 2. 界面切换 ---
+tab1, tab2 = st.tabs(["✨ 发布新房源", "🗄️ 房源管理库"])
 
-# --- 主程序逻辑 ---
-ws = get_worksheet()
-
-if ws:
-    data = ws.get_all_records()
-    df = pd.DataFrame(data)
+# --- Tab 1: 发布界面 ---
+with tab1:
+    st.subheader("📝 录入房源信息")
     
-    # 侧边栏导航
-    st.sidebar.header("功能菜单")
-    menu = st.sidebar.radio("选择操作", ["📊 实时看板", "🤖 DeepSeek AI 提取", "🖼️ 海报预览 & 托管"])
-    
-    if menu == "📊 实时看板":
-        st.subheader("当前在线房源总览")
-        # 数据统计指标
-        col1, col2, col3 = st.columns(3)
-        col1.metric("房源总数", len(df))
-        col2.metric("最高月租", f"£{df['price'].max()}")
-        col3.metric("平均月租", f"£{int(df['price'].mean())}")
+    with st.form("listing_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            title = st.text_input("房源名称 (例: River Park Tower)")
+            region = st.selectbox("伦敦区域", ["东伦敦", "西伦敦", "南伦敦", "北伦敦", "中伦敦"])
+            rooms = st.selectbox("户型", ["Studio", "1房", "2房", "3房", "4房+"])
         
-        st.dataframe(df, use_container_width=True)
-        st.success("✅ 数据已实时从 Hao_Harbour_DB 同步")
+        with col2:
+            price = st.number_input("租金 (月租 £)", min_value=0, step=100)
+            available_date = st.date_input("起租时间", datetime.now())
+        
+        en_desc = st.text_area("英文描述 (English Description)", height=150, help="粘贴 Rightmove 或官方的英文描述")
+        
+        # AI 按钮放在表单内或外均可，这里用 st.form 的提交逻辑
+        submitted = st.form_submit_button("🎨 生成海报预览 & 保存数据")
 
-    elif menu == "🤖 DeepSeek AI 提取":
-        st.subheader("DeepSeek 房源智能解析")
-        if not df.empty:
-            selected_house = st.selectbox("选择要分析的房源", df['title'].tolist())
-            desc = df[df['title'] == selected_house]['description'].values[0]
-            
-            c1, c2 = st.columns(2)
-            c1.info("原始文本描述:")
-            c1.write(desc)
-            
-            if c2.button("🚀 调用 DeepSeek 提取"):
-                with st.spinner("DeepSeek 正在解析中..."):
-                    result = deepseek_analyze(desc)
-                    c2.success("AI 提取结果:")
-                    c2.markdown(result)
+    if submitted:
+        with st.spinner("DeepSeek 正在翻译并生成中文总结..."):
+            try:
+                client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"], base_url=st.secrets["OPENAI_BASE_URL"])
+                response = client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=[
+                        {"role": "system", "content": "你是一个伦敦房产专家。请将英文描述翻译成吸引人的中文。要求：包含租金、户型、周边交通。使用Emoji增加吸引力。"},
+                        {"role": "user", "content": en_desc}
+                    ]
+                )
+                zh_summary = response.choices[0].message.content
+                
+                st.divider()
+                st.subheader("🖼️ 海报预览内容")
+                st.success("AI 中文总结生成成功！")
+                st.markdown(zh_summary)
+                
+                # 模拟六张照片展示
+                st.write("📷 房源照片预览 (最近上传的 6 张):")
+                cols = st.columns(3)
+                for i in range(6):
+                    cols[i % 3].image("https://via.placeholder.com/300x200.png?text=Room+Photo", use_container_width=True)
+                
+                # 保存到 Google Sheets
+                ws = get_worksheet()
+                if ws:
+                    new_row = [str(datetime.now().date()), title, region, rooms, price, "", zh_summary]
+                    ws.append_row(new_row)
+                    st.balloons()
+                    st.info("数据已成功存入 Hao_Harbour_DB")
+            except Exception as e:
+                st.error(f"发布出错: {e}")
 
-    elif menu == "🖼️ 海报预览 & 托管":
-        st.subheader("Cloudinary 海报托管详情")
-        if not df.empty:
-            target = st.selectbox("选择预览房源", df['title'].tolist())
-            row = df[df['title'] == target].iloc[0]
+# --- Tab 2: 管理界面 ---
+with tab2:
+    st.subheader("📊 现有房源管理")
+    ws = get_worksheet()
+    if ws:
+        data = ws.get_all_records()
+        if data:
+            df = pd.DataFrame(data)
+            # 房源搜索筛选
+            search_query = st.text_input("🔍 搜索房源名称或区域")
+            if search_query:
+                df = df[df['title'].str.contains(search_query, case=False) | df['region'].str.contains(search_query, case=False)]
             
-            img_url = row.get('poster_link', '')
-            if img_url:
-                st.image(img_url, caption=f"托管于 Cloudinary: {st.secrets['CLOUDINARY_CLOUD_NAME']}", use_container_width=True)
-                st.code(f"海报链接: {img_url}")
-            else:
-                st.warning("该房源暂无海报链接")
+            st.dataframe(df, use_container_width=True)
             
-            st.divider()
-            st.write(f"**图片 API 状态:** Cloudinary & ImgBB 已连接")
-
-else:
-    st.error("无法加载数据，请检查 Secrets 中的 GCP 配置。")
+            # 删除/编辑功能（简化演示）
+            if st.button("🗑️ 清空最后一条记录"):
+                ws.delete_rows(len(data) + 1)
+                st.rerun()
+        else:
+            st.warning("数据库目前是空的。")
