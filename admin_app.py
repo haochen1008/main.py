@@ -4,13 +4,8 @@ from google.oauth2 import service_account
 import pandas as pd
 from openai import OpenAI
 from datetime import datetime
-from PIL import Image, ImageDraw, ImageFont
-import io
-import requests
 
-st.set_page_config(page_title="Hao Harbour 房源智能管理", layout="wide")
-
-# --- 1. 核心连接 (已验证的稳定版) ---
+# --- 1. 核心认证 (物理拼装版，确保稳定) ---
 def get_worksheet():
     try:
         info = dict(st.secrets["gcp_service_account"])
@@ -21,92 +16,83 @@ def get_worksheet():
         return gc.open("Hao_Harbour_DB").get_worksheet(0)
     except: return None
 
-# --- 2. 界面切换 ---
-tab1, tab2 = st.tabs(["✨ 发布与海报生成", "🗄️ 房源库管理"])
+# --- 2. 界面设计 ---
+st.title("🏡 Hao Harbour 房源智能管理")
+tab1, tab2 = st.tabs(["✨ 智能发布海报", "🗄️ 房源库管理"])
 
-# --- Tab 1: 发布与海报 ---
+# 初始化 Session State (用于存储 AI 提取的临时文案)
+if 'zh_summary' not in st.session_state:
+    st.session_state.zh_summary = ""
+
+# --- Tab 1: 智能发布 ---
 with tab1:
-    st.subheader("📝 录入新房源")
-    with st.form("main_form"):
+    with st.container(border=True):
+        st.subheader("1. 基础信息录入")
         c1, c2, c3 = st.columns(3)
-        title = c1.text_input("房源名称")
-        region = c2.selectbox("区域", ["东伦敦", "西伦敦", "南伦敦", "北伦敦", "中伦敦"])
-        rooms = c3.selectbox("户型", ["Studio", "1房", "2房", "3房+"])
+        title = c1.text_input("房源名称", placeholder="例: River Park Tower")
+        region = c2.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"])
+        price = c3.number_input("租金 (£/月)", min_value=0)
         
-        price = st.number_input("月租 (£)", min_value=0)
-        en_desc = st.text_area("粘贴英文描述 (English Description)", height=150)
+        en_desc = st.text_area("2. 粘贴英文描述", height=150)
         
-        uploaded_files = st.file_uploader("添加房源照片 (最多6张)", accept_multiple_files=True, type=['png', 'jpg', 'jpeg'])
-        
-        submit = st.form_submit_button("🚀 AI 提取并生成海报")
+        if st.button("🤖 智能提取中文文案"):
+            if en_desc:
+                with st.spinner("AI 正在解析并总结..."):
+                    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"], base_url=st.secrets["OPENAI_BASE_URL"])
+                    ai_res = client.chat.completions.create(
+                        model="deepseek-chat",
+                        messages=[{"role": "system", "content": "你是一个伦敦房产专家。请把英文描述翻译成吸引人的中文总结，包含户型、交通、租金和亮点。使用 Emoji。"},
+                                  {"role": "user", "content": en_desc}]
+                    )
+                    st.session_state.zh_summary = ai_res.choices[0].message.content
+            else:
+                st.warning("请先粘贴英文描述")
 
-    if submit:
-        # AI 提取总结
-        with st.spinner("DeepSeek 正在解析并总结..."):
-            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"], base_url=st.secrets["OPENAI_BASE_URL"])
-            ai_res = client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[{"role": "system", "content": "你是一个伦敦房产专家。请把这段英文描述总结成简洁的中文要点，包含租金、户型、交通和亮点。"},
-                          {"role": "user", "content": en_desc}]
-            )
-            zh_summary = ai_res.choices[0].message.content
+        # 允许用户编辑 AI 生成的结果
+        final_zh_desc = st.text_area("3. 编辑/确认中文文案", value=st.session_state.zh_summary, height=200)
         
-        st.success("✅ AI 中文总结已生成")
-        st.info(zh_summary)
-
-        # 展示照片
-        if uploaded_files:
-            st.write("📷 已添加的照片预览:")
-            cols = st.columns(3)
-            for idx, file in enumerate(uploaded_files[:6]):
-                cols[idx % 3].image(file, use_container_width=True)
-
-        # 生成海报 (Canvas 模拟)
-        st.divider()
-        st.subheader("🎨 预览生成的海报")
-        poster_bg = Image.new('RGB', (800, 1000), color=(255, 255, 255))
-        draw = ImageDraw.Draw(poster_bg)
-        # 这里简单展示海报文字预览，实际可用 ImageFont 渲染
-        draw.text((50, 50), f"Hao Harbour: {title}", fill=(0,0,0))
-        draw.text((50, 100), f"Region: {region} | Price: £{price}", fill=(50,50,50))
+        uploaded_files = st.file_uploader("4. 添加照片 (最多6张)", accept_multiple_files=True, type=['png', 'jpg', 'jpeg'])
         
-        st.image(poster_bg, caption="点击右键保存海报")
-        
-        # 写入数据库
-        ws = get_worksheet()
-        if ws:
-            ws.append_row([str(datetime.now().date()), title, region, rooms, price, "", zh_summary, 0])
-            st.balloons()
+        if st.button("🚀 正式发布并存档"):
+            ws = get_worksheet()
+            if ws:
+                # 写入格式: 日期, 名称, 区域, 户型(略), 价格, 图片链接(略), 描述, 精选(0)
+                ws.append_row([str(datetime.now().date()), title, region, "待定", price, "", final_zh_desc, 0])
+                st.balloons()
+                st.success("房源已成功发布并存档！")
 
 # --- Tab 2: 房源管理 ---
 with tab2:
-    st.subheader("📊 房源库管理")
     ws = get_worksheet()
     if ws:
-        df = pd.DataFrame(ws.get_all_records())
+        data = ws.get_all_records()
+        df = pd.DataFrame(data)
         
-        # 搜索
-        search = st.text_input("🔍 搜索名称")
-        if search:
-            df = df[df['title'].str.contains(search, case=False)]
-        
-        # 渲染列表，带 Feature 切换和删除
         for index, row in df.iterrows():
-            with st.expander(f"{'⭐' if row.get('is_featured') == 1 else ''} {row['title']} - {row['region']}"):
-                col1, col2, col3 = st.columns([3, 1, 1])
-                col1.write(f"**价格:** £{row['price']} | **户型:** {row['rooms']}")
-                col1.write(f"**总结:** {row['description']}")
-                
-                # Feature 功能
-                if col2.button("设为精选", key=f"feat_{index}"):
-                    ws.update_cell(index + 2, 8, 1) # 假设第8列是 is_featured
-                    st.rerun()
-                
-                # 删除功能
-                if col3.button("🗑️ 删除", key=f"del_{index}"):
-                    ws.delete_rows(index + 2)
-                    st.warning(f"已删除 {row['title']}")
-                    st.rerun()
-
+            with st.expander(f"{'⭐' if row.get('is_featured') == 1 else ''} {row['title']} - {row['region']} (£{row['price']})"):
+                # 编辑模式
+                with st.form(key=f"edit_form_{index}"):
+                    new_price = st.number_input("修改租金", value=int(row['price']), key=f"p_{index}")
+                    new_desc = st.text_area("修改描述", value=row['description'], key=f"d_{index}")
+                    
+                    c1, c2, c3 = st.columns(3)
+                    save_btn = c1.form_submit_button("💾 保存修改")
+                    feat_btn = c2.form_submit_button("⭐ 切换精选")
+                    del_btn = c3.form_submit_button("🗑️ 删除房源")
+                    
+                    if save_btn:
+                        ws.update_cell(index + 2, 5, new_price) # 第5列是 price
+                        ws.update_cell(index + 2, 7, new_desc)  # 第7列是 description
+                        st.success("修改已保存")
+                        st.rerun()
+                        
+                    if feat_btn:
+                        new_status = 0 if row.get('is_featured') == 1 else 1
+                        ws.update_cell(index + 2, 8, new_status) # 第8列是 is_featured
+                        st.rerun()
+                        
+                    if del_btn:
+                        ws.delete_rows(index + 2)
+                        st.rerun()
     else:
-        st.error("数据加载失败。")
+        st.error("数据连接失败。")
