@@ -3,15 +3,14 @@ import gspread
 from google.oauth2 import service_account
 import pandas as pd
 from openai import OpenAI
-from PIL import Image
 import requests
 from io import BytesIO
 
 # 页面配置
-st.set_page_config(page_title="Hao Harbour 综合管理系统", layout="wide")
-st.title("🏡 Hao Harbour 数据与 AI 管理中心")
+st.set_page_config(page_title="Hao Harbour 房源管理", layout="wide")
+st.title("🏡 Hao Harbour 数据与 AI 管理系统")
 
-# --- 1. 底层连接逻辑 (已验证成功) ---
+# --- 1. 稳定连接 Google Sheets ---
 def connect_to_gsheets():
     try:
         creds_info = dict(st.secrets["gcp_service_account"])
@@ -22,79 +21,74 @@ def connect_to_gsheets():
             "https://www.googleapis.com/auth/drive"
         ])
         gc = gspread.authorize(scoped)
+        # 使用 URL 强制连接防止 404
         sheet_url = "https://docs.google.com/spreadsheets/d/1wZj0JpEx6AcBsem7DNDnjKjGizpUMAasDh5q7QRng74/edit#gid=0"
         return gc.open_by_url(sheet_url).get_worksheet(0)
     except Exception as e:
         st.error(f"连接失败: {e}")
         return None
 
-# --- 2. AI 提取逻辑 ---
-def ai_extract_info(description):
+# --- 2. DeepSeek AI 提取功能 ---
+def deepseek_extract(text):
     try:
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        # 使用 DeepSeek 配置
+        client = OpenAI(
+            api_key=st.secrets["OPENAI_API_KEY"],
+            base_url=st.secrets["OPENAI_BASE_URL"]
+        )
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="deepseek-chat", # 或者 deepseek-reasoner
             messages=[
-                {"role": "system", "content": "你是一个房产专家，请从描述中提取：租金、户型、地理位置、核心卖点。用简洁的列表回复。"},
-                {"role": "user", "content": description}
+                {"role": "system", "content": "你是一个伦敦房产专家，请从描述中提取：租金(月/周)、户型、邮编、起租时间。用简洁的列表回复。"},
+                {"role": "user", "content": text}
             ]
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"AI 提取出错: {e}"
+        return f"DeepSeek 分析出错: {e}"
 
-# --- 主程序逻辑 ---
+# --- 主程序 ---
 worksheet = connect_to_gsheets()
 
 if worksheet:
-    # 侧边栏功能
-    menu = st.sidebar.selectbox("选择功能", ["📊 房源看板", "🤖 AI 描述分析", "🎨 海报预览"])
+    # 获取数据并清洗列名
+    data = worksheet.get_all_records()
+    df = pd.DataFrame(data)
     
-    # 获取数据
-    raw_data = worksheet.get_all_records()
-    df = pd.DataFrame(raw_data)
+    tab1, tab2, tab3 = st.tabs(["📊 数据总览", "🤖 AI 提取分析", "🎨 海报预览"])
 
-    if menu == "📊 房源看板":
-        st.subheader("当前在线房源")
+    with tab1:
+        st.subheader("在线房源看板")
         st.dataframe(df, use_container_width=True)
-        st.info(f"共监测到 {len(df)} 套房源")
 
-    elif menu == "🤖 AI 描述分析":
-        st.subheader("智能提取房源要点")
-        target_row = st.selectbox("选择要分析的房源", df['title'].tolist())
-        desc = df[df['title'] == target_row]['description'].values[0]
-        
-        st.text_area("原始描述", desc, height=150)
-        if st.button("开始 AI 分析"):
-            with st.spinner("AI 正在深度解析..."):
-                result = ai_extract_info(desc)
-                st.markdown("### 📌 AI 提取结果")
-                st.write(result)
-
-    elif menu == "🎨 海报预览":
-        st.subheader("社交媒体海报生成预览")
-        col1, col2 = st.columns([1, 2])
-        
-        selected_house = col1.selectbox("选择海报房源", df['title'].tolist())
-        house_info = df[df['title'] == selected_house].iloc[0]
-        
-        with col2:
-            st.write(f"**房源名称:** {house_info['title']}")
-            st.write(f"**价格:** £{house_info['price']}/月")
+    with tab2:
+        st.subheader("DeepSeek 智能解析")
+        if 'title' in df.columns:
+            selected_title = st.selectbox("选择要分析的房源", df['title'].tolist())
+            desc_text = df[df['title'] == selected_title]['description'].values[0]
             
-            # 尝试加载图片
-            try:
-                img_url = house_info['poster_link']
-                response = requests.get(img_url)
-                img = Image.open(BytesIO(response.content))
-                st.image(img, caption=f"海报预览: {selected_house}", use_container_width=True)
-                
-                # 下载按钮
-                buf = BytesIO()
-                img.save(buf, format="PNG")
-                st.download_button(label="💾 下载海报图片", data=buf.getvalue(), file_name=f"{selected_house}.png", mime="image/png")
-            except:
-                st.warning("该房源暂无有效海报链接")
+            col_a, col_b = st.columns(2)
+            col_a.info("原始描述:")
+            col_a.write(desc_text)
+            
+            if col_b.button("🚀 调用 DeepSeek 提取信息"):
+                with st.spinner("DeepSeek 思考中..."):
+                    res = deepseek_extract(desc_text)
+                    col_b.success("分析结果:")
+                    col_b.markdown(res)
+
+    with tab3:
+        st.subheader("海报与托管信息")
+        if 'poster_link' in df.columns:
+            selected_house = st.selectbox("预览海报房源", df['title'].tolist())
+            row = df[df['title'] == selected_house].iloc[0]
+            
+            img_url = row['poster_link']
+            if img_url:
+                st.image(img_url, caption=f"海报链接: {img_url}", use_container_width=True)
+                st.write(f"Cloudinary 存储账户: {st.secrets['CLOUDINARY_CLOUD_NAME']}")
+            else:
+                st.warning("该房源暂无海报链接")
 
 else:
-    st.error("数据源未就绪，请检查 Secrets 配置。")
+    st.error("无法加载数据，请检查 Secrets 配置。")
