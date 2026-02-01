@@ -10,18 +10,18 @@ st.set_page_config(page_title="Hao Harbour | London Luxury", layout="wide")
 
 st.markdown("""
     <style>
-    /* 核心样式：统一色调与间距 */
+    /* 导航标签样式 */
     .stTabs [data-baseweb="tab-list"] { gap: 20px; justify-content: center; }
     .stTabs [aria-selected="true"] { color: #bfa064 !important; border-bottom: 2px solid #bfa064 !important; }
 
-    /* 卡片基础样式 */
-    .prop-title { font-weight: bold; font-size: 19px; color: #1a1a1a; margin: 5px 0; }
-    .prop-price { color: #bfa064; font-size: 23px; font-weight: bold; }
+    /* 房源卡片样式 */
+    .prop-title { font-weight: bold; font-size: 18px; color: #1a1a1a; margin: 5px 0; }
+    .prop-price { color: #bfa064; font-size: 22px; font-weight: bold; }
     .prop-date { font-size: 12px; color: #999; margin-bottom: 10px; }
     
-    .wa-link { background-color: #25D366 !important; color: white !important; text-align: center; padding: 12px; border-radius: 10px; font-weight: bold; text-decoration: none; display: block; }
+    /* WhatsApp 按钮样式 */
+    .wa-link { background-color: #25D366 !important; color: white !important; text-align: center; padding: 10px; border-radius: 8px; font-weight: bold; text-decoration: none; display: block; }
     
-    /* 隐藏 Streamlit 默认页眉页脚 */
     #MainMenu, footer, .stAppDeployButton, [data-testid="stToolbar"] {visibility: hidden; display: none !important;}
     </style>
 """, unsafe_allow_html=True)
@@ -35,21 +35,22 @@ def get_data():
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         )
-        ws = gspread.authorize(creds).open("Hao_Harbour_DB").get_worksheet(0)
+        gc = gspread.authorize(creds)
+        ws = gc.open("Hao_Harbour_DB").get_worksheet(0)
         return pd.DataFrame(ws.get_all_records()), ws
     except:
         return pd.DataFrame(), None
 
-# --- 3. 详情弹窗 (彻底修复内容重复问题) ---
+# --- 3. 详情弹窗 (修复重复，保留功能) ---
 @st.dialog("Property Details")
 def show_details(item, ws, row_idx):
-    # A. 图片与下载 (F列 poster-link)
+    # A. 高清海报 (F列)
     img_url = item.get('poster-link', '')
     if img_url:
         st.image(img_url, use_container_width=True)
         try:
             resp = requests.get(img_url, timeout=10)
-            st.download_button(label="📥 保存高清海报", data=resp.content, file_name=f"Hao_{item['title']}.jpg", mime="image/jpeg", use_container_width=True)
+            st.download_button(label="📥 下载海报", data=resp.content, file_name=f"Hao_{item['title']}.jpg", mime="image/jpeg", use_container_width=True)
         except: pass
 
     st.markdown(f"## {item['title']}")
@@ -62,60 +63,60 @@ def show_details(item, ws, row_idx):
     
     st.markdown("---")
     
-    # B. 核心修复：不再使用 markdown 展示文案，直接使用 code 框展示+复制
+    # B. 房源文案 (一键复制且不重复显示)
     st.markdown("### 📜 房源亮点")
     raw_desc = str(item.get('description', ''))
-    # 逻辑：确保每个 ✓ 前面都有换行，实现“每勾一行”的整洁排版
     formatted_desc = raw_desc.replace('✓', '\n✓').strip()
-    
-    # 直接放置带复制功能的代码框，通过 height 参数控制高度，避免页面过长
-    st.info("💡 点击右侧按钮即可一键复制完整文案：")
-    st.code(formatted_desc, language=None, wrap_lines=True)
+    st.info("💡 点击下方框内右上角一键复制：")
+    st.code(formatted_desc, language=None)
 
     st.markdown("---")
-    # C. 交互跳转
     m_q = urllib.parse.quote(item['title'] + " London")
     st.link_button("📍 在 Google Maps 查看位置", f"https://www.google.com/maps/search/{m_q}", use_container_width=True)
 
-    st.markdown("### 📱 预约看房")
-    col_l, col_r = st.columns(2)
-    with col_l:
-        st.markdown('<div style="background:#f8f9fa;padding:10px;text-align:center;border:1px solid #eee;border-radius:10px;"><b>微信: HaoHarbour</b></div>', unsafe_allow_html=True)
-    with col_r:
+    # 联系方式
+    st.markdown("### 📱 预约咨询")
+    cl, cr = st.columns(2)
+    with cl:
+        st.markdown("**微信**")
+        st.code("HaoHarbour", language=None)
+    with cr:
         wa_url = f"https://wa.me/447450912493?text=Interested in {item['title']}"
         st.markdown(f'<a href="{wa_url}" class="wa-link">💬 WhatsApp</a>', unsafe_allow_html=True)
 
-    # 浏览量自动+1 (H列)
+    # 浏览量
     try:
         new_v = int(item.get('views', 0)) + 1
         ws.update_cell(row_idx, 8, new_v)
     except: pass
 
-# --- 4. 主程序 (保持所有搜索/筛选功能) ---
-st.markdown("<h1 style='text-align:center; color:#1a1a1a; font-size:45px;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
+# --- 4. 主程序：四大 TAB ---
+st.markdown("<h1 style='text-align:center; color:#1a1a1a; font-family:serif; font-size:42px;'>HAO HARBOUR</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#bfa064; letter-spacing:5px; font-size:12px;'>EXCLUSIVE LONDON LIVING</p>", unsafe_allow_html=True)
 
 df, worksheet = get_data()
 
 if not df.empty:
-    tabs = st.tabs(["🏠 房源精选", "🛠️ 专业服务", "👤 团队背景", "📞 立即咨询"])
+    tabs = st.tabs(["🏠 房源精选", "🛠️ 我们的服务", "👤 关于我们", "📞 联系方式"])
     
+    # --- TAB 1: 房源精选 ---
     with tabs[0]:
-        # 搜索与筛选区
         with st.expander("🔍 筛选与搜索房源", expanded=False):
-            search_query = st.text_input("输入关键词搜索 (楼盘名、地铁站、描述)...", "").lower()
-            f1, f2 = st.columns(2)
+            search_q = st.text_input("输入楼盘、地铁站关键词...", "").lower()
+            f1, f2, f3 = st.columns(3)
             sel_reg = f1.multiselect("区域", options=sorted(df['region'].unique()))
             sel_room = f2.multiselect("户型", options=sorted(df['rooms'].unique()))
+            max_p = f3.slider("预算上限 (£)", 1000, 15000, 15000)
         
         f_df = df.copy()
-        if search_query:
-            f_df = f_df[f_df['title'].str.lower().str.contains(search_query) | f_df['description'].str.lower().str.contains(search_query)]
+        if search_q:
+            f_df = f_df[f_df['title'].str.lower().str.contains(search_q) | f_df['description'].str.lower().str.contains(search_q)]
         if sel_reg: f_df = f_df[f_df['region'].isin(sel_reg)]
         if sel_room: f_df = f_df[f_df['rooms'].isin(sel_room)]
-        
+        f_df['p_num'] = pd.to_numeric(f_df['price'], errors='coerce').fillna(0)
+        f_df = f_df[f_df['p_num'] <= max_p]
         f_df = f_df.sort_values(by=['is_featured', 'date'], ascending=[False, False])
 
-        # 网格显示
         cols = st.columns(3)
         for i, (idx, row) in enumerate(f_df.iterrows()):
             with cols[i % 3]:
@@ -125,16 +126,54 @@ if not df.empty:
                     st.markdown(f'<div class="prop-title">{row["title"]}</div>', unsafe_allow_html=True)
                     st.markdown(f'<div class="prop-price">£{row["price"]} /mo</div>', unsafe_allow_html=True)
                     st.markdown(f'<div class="prop-date">📍 {row["region"]} | 🗓️ {row.get("date", "近期")}</div>', unsafe_allow_html=True)
-                    if st.button("查看详情", key=f"btn_{idx}", use_container_width=True):
+                    if st.button("详情", key=f"btn_{idx}", use_container_width=True):
                         show_details(row, worksheet, idx + 2)
 
-    # 补齐 Tab 2, 3, 4 的原始内容...
+    # --- TAB 2: 我们的服务 (完全还原你的原始文案) ---
     with tabs[1]:
-        st.markdown("### 🛠️ 我们的专业服务")
-        st.write("提供从选址到退房的全流程管家式服务。")
+        st.markdown("### 🛠️ 全生命周期管家式关怀")
+        s_c1, s_c2 = st.columns(2)
+        with s_c1:
+            st.markdown("""
+            **精准定向选址 (Bespoke Property Search)**
+            * **覆盖城市**：深度覆盖伦敦、曼彻斯特、伯明翰等核心求学区域。
+            * **需求画像**：根据校区、预算、安全系数及周边交通进行大数据筛选。
+            """)
+            st.markdown("""
+            **账单管家 (Utility Setting-up Support)**
+            * **Utilities 托管**：协助开通水、电、煤气及高性价比宽带网络运营商。
+            * **政务处理**：指导申请 Council Tax 免税证明，节省高额开支。
+            """)
+        with s_c2:
+            st.markdown("""
+            **文书合规与风控 (Contract & Compliance)**
+            * **租房审查协助**：针对留学生无英国担保人痛点提供专业指导。
+            * **合同审计**：深度解读 Tenancy Agreement，确保押金受 TDS 保护。
+            """)
+            st.markdown("""
+            **轻松退房 (Easy Check Out)**
+            * **设施检查**：协助查看验房报告，确保退房时押金全额退还。
+            * **清洁安排**：协助安排深度退租清洁，长期合作，靠谱实惠。
+            """)
+
+    # --- TAB 3: 关于我们 (完全还原你的原始文案) ---
     with tabs[2]:
-        st.markdown("### 👤 团队背景")
-        st.write("UCL 硕士团队，深耕伦敦 10 余年。")
+        st.markdown("### 👤 为什么选择 Hao Harbour？")
+        st.info("""
+        * **【名校精英视角】** 创始人拥有 **UCL（伦敦大学学院）本硕学历**，以校友身份深切理解留学生对学区安全及环境的严苛需求。
+        * **【行业巨头背景】** 曾任职于全球房产咨询五大行之一，财富500强公司的 **JLL（仲量联行）**，引入世界级房地产专业标准与合规流程。
+        * **【十载英伦深耕】** 扎根英国生活 **10余年**，提供比导航更精准的社区治安、配套及族裔分布解析。
+        * **【官方战略合作】** 与众多本土管理公司建立长期稳固合作，掌握大量“独家房源”或优先配额。
+        * **【金牌服务口碑】** 成功协助数百位国际留学生完成从“纸上申请”到“温馨入住”的完美过渡。
+        """)
+
+    # --- TAB 4: 联系方式 (完全还原你的原始文案) ---
     with tabs[3]:
-        st.markdown("### 📞 联系我们")
-        st.write("WeChat: HaoHarbour")
+        st.markdown("### 📞 预约您的私人顾问")
+        con_c1, con_c2 = st.columns(2)
+        with con_c1:
+            st.markdown("**微信咨询 (WeChat)**")
+            st.code("HaoHarbour", language=None)
+        with con_c2:
+            st.markdown("**WhatsApp**")
+            st.markdown('<a href="https://wa.me/447450912493" class="wa-link">💬 点击联系咨询</a>', unsafe_allow_html=True)
