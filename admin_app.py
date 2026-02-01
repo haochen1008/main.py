@@ -1,112 +1,130 @@
 import streamlit as st
+import pandas as pd
 import gspread
 from google.oauth2 import service_account
-import pandas as pd
-from openai import OpenAI
-from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
+import requests
+from io import BytesIO
+import time
 
-# --- 1. 核心认证 (物理拼装版) ---
-def get_worksheet():
+# --- 1. 数据库连接 (使用您 secrets 中的配置) ---
+def get_gs_worksheet():
     try:
-        info = dict(st.secrets["gcp_service_account"])
-        key_parts = ["MIIEugIBADANBgkqhkiG9w0BAQEFAASCBKQwggSgAgEAAoIBAQCRayoKdXw38HlF", "6J23Bbyq7zAzCWQ5OAtzk0/fOhbnFUHJTMOF1njbBw92x9etYoDt5WbBUwbexaQE", "6mTmvNU0pIGEH+iUWxvkb0VNWe3o1AceLLyDECR8p+srO04Un9hP9N0k+3SzNUFo", "xTSQCMg+GVDLJN2TLTZ3MaAuJY+UtZ+tk0K01PMZGRGu8Jl0iSZhlsbZeTSptzMJ", "UIZRnbIu8HVGVfZYGWEb1sWmUBMKsJAkr5nWPDCTgQex98rdrgSKNxT+I8x6nQMz", "pkqVTcAOlShz8bXr85C/g+t8wFMSFZKi0KGdweZY1pgTkRe7589V/ne4omfK0oqu", "q7BLqPYtAgMBAAECgf9yRxG3eT+Az4zYsAWlrSuOeY9l/67YwQF2CB/3nDAprTQ+", "QAxnf2HIUA4mEdTysdwMO1ptOvuiY8DOZ2paAtvzjg2ypW/PqSQd4e9R25K4PxT5", "h0UvZO1bpLOOCFwWgVAcEjKZ1MEmIzonCN0Kx22aqtRmJblpc4uwgcZ53MHmN1qH", "UoSB1zw9c6EEoevxDAlve7yuVE5BU0kHtyaQANTShDjbLMFt2yvRBY4ZSuqJVjKG", "BWt6gTPyTHm3JcMxNOkEaxT/4eJytU1GUuqxShQf4rRCfeaCCcBPnzWl9LigYQ1O", "+s3b6rxjioi2p+nzgzhVpQVnaa7eGxojoaNpkukCgYEAwytmFQ1oLK+EzET6u2Bt", "O/qB2sxn3iKFaHMRBF2HEAOmmwCxqipvswiQmrV2pX1t+TQd+kk5z6iEpgsmm9HY", "mdUv9QBN23TmOfS1UJjLkeKmRfanhr700QpwW29yuL/RBpvSanXDnreiFw5gMT+/", "/AODyVyKDzPUwleamZtsvrUCgYEAvr4iMO8B9u6j4EPVa8XKl2ho2tm9qgrviIbd", "dvu4itmgECC/BWEsvJhgoqm1jG8A+KMhf5oUZJKrwMB0EjOM+r43PzjYfY+CvtAz", "Mfea+rbhCWootwt9YWeqkBay00jtVe0kKMcaXzfcNUucDRDa8+8RLhUunBx6SzGj", "BW3gjJkCgYB4ZpeNOT4hAw6brZo4ah45OCtPvXX+VbGTZBkFZmVh/b6UNPNllNRf", "0FLU/kl5gk2LxRkRRIdDkiRzAsIIsoY7MIdrT4q4bf9xlYMde4VqNDZ7RtTGjZse", "MqBp5/EQBFWBDDPctVW+3m5CZv30o+1eHRT57frFsiX41m5rgLSvWQKBgDvGZfyj", "yh/SZXTQjT96+qQ8Si/bcL6rMqm8agbxl8GbtbeYK4TKETUBI7eWK5jY6JsCtGrC", "pIVoGX8MUNOraBDkL3gWnnGq2bRmlsSf7eeIDDnhFOVYKnCuBhuloWDpR8dXy68j", "xjX00YO6MCtADv3G+8FPTg4KNqD96zK2XlpxAoGAWxLPxsJM71wnUXloar4X1pZU", "H5sKI9x0ivkug/DwaDbXZP4CO5f09L1yvQhXN1hQVqBKENXFOKgT1ZkKc5aIo+Py", "8GkcvwcQLsXUrli1JW0dbTUYYFH+lbvB7Kpn78Lxgdwv0vYFbTjAeW1Pgyzq9G97", "6FI0qUia8eWEUNibK1k="]
-        info["private_key"] = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(key_parts) + "\n-----END PRIVATE KEY-----"
-        creds = service_account.Credentials.from_service_account_info(info)
-        gc = gspread.authorize(creds.with_scopes(["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]))
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, 
+            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        )
+        gc = gspread.authorize(creds)
+        # 确保表格名称正确
         return gc.open("Hao_Harbour_DB").get_worksheet(0)
-    except: return None
+    except Exception as e:
+        st.error(f"数据库连接失败: {e}")
+        return None
 
-# --- 2. 界面设计 ---
-tab1, tab2 = st.tabs(["✨ 智能发布海报", "🗄️ 房源库管理"])
-
-if 'zh_summary' not in st.session_state:
-    st.session_state.zh_summary = ""
-
-# --- Tab 1: 智能发布 (结构微调确保稳定) ---
-with tab1:
-    with st.container(border=True):
-        st.subheader("1. 基础信息录入")
-        c1, c2, c3 = st.columns(3)
-        title = c1.text_input("房源名称", key="new_title")
-        region = c2.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"], key="new_region")
-        price = c3.number_input("租金 (£/月)", min_value=0, key="new_price")
+# --- 2. DeepSeek 智能文案提取逻辑 ---
+def ai_extract_chinese(english_text):
+    if not english_text:
+        return "请先在上方粘贴英文描述"
+    
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"] # 确保 secrets 中已填入 DeepSeek Key
+        # DeepSeek 官方 API 端点
+        base_url = "https://api.deepseek.com/chat/completions"
         
-        en_desc = st.text_area("2. 粘贴英文描述", height=150, key="new_en_desc")
-        
-        if st.button("🤖 智能提取中文文案"):
-            if en_desc:
-                with st.spinner("DeepSeek 正在解析..."):
-                    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"], base_url=st.secrets["OPENAI_BASE_URL"])
-                    ai_res = client.chat.completions.create(
-                        model="deepseek-chat",
-                        messages=[{"role": "system", "content": "你是一个伦敦房产专家。总结英文描述为中文要点。"},
-                                  {"role": "user", "content": en_desc}]
-                    )
-                    st.session_state.zh_summary = ai_res.choices[0].message.content
-            else:
-                st.warning("请先输入英文描述")
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "system", "content": "你是一个伦敦豪宅中介，请将英文描述总结为专业的中文卖点，包含租金、户型、地理优势，使用列表格式。"},
+                {"role": "user", "content": english_text}
+            ],
+            "temperature": 0.7
+        }
+        response = requests.post(base_url, json=payload, headers=headers, timeout=30)
+        return response.json()['choices'][0]['message']['content']
+    except Exception as e:
+        return f"DeepSeek 提取失败: {str(e)}"
 
-        final_zh_desc = st.text_area("3. 编辑并确认中文文案", value=st.session_state.zh_summary, height=200, key="final_desc_input")
-        st.file_uploader("4. 添加照片 (预览)", accept_multiple_files=True, type=['png', 'jpg'], key="new_pics")
+# --- 3. 海报生成引擎 (带 45° 倾斜全屏水印) ---
+def generate_poster_with_watermark(img_file, title, price, region):
+    try:
+        # A. 读取并缩放底图 (1080x1440 黄金比例)
+        base_img = Image.open(img_file).convert("RGBA").resize((1080, 1440))
         
-        if st.button("🚀 正式发布并存档", key="publish_btn"):
-            ws = get_worksheet()
-            if ws:
-                ws.append_row([str(datetime.now().date()), title, region, "待定", price, "", final_zh_desc, 0])
-                st.balloons()
-                st.success("发布成功！")
+        # B. 创建一个巨大的水印层（为了旋转时不露白边）
+        watermark_layer = Image.new("RGBA", (2000, 2000), (0, 0, 0, 0))
+        draw_wm = ImageDraw.Draw(watermark_layer)
+        
+        # C. 填充重复的水印文字
+        wm_text = "HAO HARBOUR EXCLUSIVE    " * 4
+        for y in range(0, 2000, 250): # 垂直间距
+            draw_wm.text((0, y), wm_text, fill=(255, 255, 255, 45)) # 45 为透明度
+        
+        # D. 旋转 45 度并粘贴回底图中心
+        watermark_layer = watermark_layer.rotate(45, expand=False)
+        # 计算偏移使其居中
+        base_img.paste(watermark_layer, (-450, -450), watermark_layer)
+        
+        # E. 叠加底部黑色半透明信息栏
+        info_overlay = Image.new("RGBA", base_img.size, (0, 0, 0, 0))
+        draw_info = ImageDraw.Draw(info_overlay)
+        draw_info.rectangle([0, 1150, 1080, 1440], fill=(26, 28, 35, 220)) # 底座
+        
+        # F. 写入文本信息 (金色标题 + 白色详情)
+        draw_info.text((60, 1200), f"PROPERTY: {title}", fill=(191, 160, 100, 255))
+        draw_info.text((60, 1300), f"PRICE: £{price} /month | {region}", fill=(255, 255, 255, 255))
+        
+        # 合成最终图像
+        final_poster = Image.alpha_composite(base_img, info_overlay)
+        return final_poster.convert("RGB")
+    except Exception as e:
+        st.error(f"海报生成失败: {e}")
+        return None
 
-# --- Tab 2: 房源管理 (修复重复 ID 报错) ---
-with tab2:
-    ws = get_worksheet()
+# --- 4. 管理后台界面 ---
+st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
+st.title("🛡️ 房源管理后台 (DeepSeek 增强版)")
+
+t1, t2 = st.tabs(["✨ 智能发布海报", "🗄️ 房源库预览"])
+
+with t1:
+    st.header("1. 基础信息录入")
+    # 修复了 Form 导致的交互问题，采用 Session State 保持状态
+    col1, col2, col3 = st.columns(3)
+    p_name = col1.text_input("房源名称", placeholder="例如: Triptych Bankside")
+    p_region = col2.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "北伦敦", "南伦敦"])
+    p_price = col3.number_input("租金 (£/月)", min_value=0, step=100)
+    
+    p_rooms = st.selectbox("户型选择", ["Studio", "1房", "2房", "3房", "4房+"]) # 完整户型
+    
+    en_desc = st.text_area("粘贴英文描述", height=150, help="粘贴 Rightmove/Zoopla 的英文描述")
+    
+    # 智能提取按钮 (DeepSeek 驱动)
+    if st.button("🪄 智能提取中文文案 (DeepSeek)"):
+        with st.spinner("DeepSeek AI 正在生成中..."):
+            st.session_state['zh_content'] = ai_extract_chinese(en_desc)
+    
+    final_zh = st.text_area("编辑并确认中文文案", value=st.session_state.get('zh_content', ''), height=180)
+    
+    st.write("---")
+    st.header("2. 海报合成 (45° 防伪水印)")
+    uploaded_img = st.file_uploader("上传房源主图", type=["jpg", "png", "jpeg"])
+    
+    if uploaded_img:
+        if st.button("🎨 点击合成预览海报"):
+            poster_res = generate_poster_with_watermark(uploaded_img, p_name, p_price, p_region)
+            if poster_res:
+                st.image(poster_res, caption="合成海报预览 (45度倾斜防伪水印)")
+                buf = BytesIO()
+                poster_res.save(buf, format="JPEG", quality=95)
+                st.download_button("📥 下载此海报至电脑", buf.getvalue(), f"Poster_{p_name}.jpg", "image/jpeg")
+
+with t2:
+    st.header("房源库实时数据")
+    ws = get_gs_worksheet()
     if ws:
-        # 实时拉取数据
-        all_data = ws.get_all_records()
-        df = pd.DataFrame(all_records := all_data)
-        
-        st.subheader("🔍 房源库检索")
-        keyword = st.text_input("搜索名称或区域", placeholder="输入搜索内容...", key="mgmt_search")
-        
-        # 过滤数据
-        if keyword:
-            display_df = df[df['title'].astype(str).str.contains(keyword, case=False) | 
-                            df['region'].astype(str).str.contains(keyword, case=False)]
-        else:
-            display_df = df
-
-        st.write(f"共找到 {len(display_df)} 条记录")
-
-        # 核心修复：遍历 display_df 时使用唯一的 identifier
-        for idx, row in display_df.iterrows():
-            # 计算原始行号 (标题行占 1 行，索引从 0 开始，所以 +2)
-            real_row_num = idx + 2
-            
-            # 使用房源标题+原始行号创建唯一 key，彻底解决 build_duplicate_form_message 报错
-            unique_key = f"form_{row['title']}_{real_row_num}"
-            
-            with st.expander(f"{'⭐' if row.get('is_featured')==1 else ''} {row['title']} - £{row['price']}"):
-                with st.form(key=unique_key):
-                    c1, c2 = st.columns(2)
-                    upd_price = c1.number_input("价格 (£)", value=int(row['price']), key=f"p_{unique_key}")
-                    upd_region = c2.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"], 
-                                             index=["中伦敦", "东伦敦", "西伦敦", "南伦敦", "北伦敦"].index(row['region']),
-                                             key=f"r_{unique_key}")
-                    upd_desc = st.text_area("文案", value=row['description'], height=150, key=f"d_{unique_key}")
-                    
-                    bc1, bc2, bc3 = st.columns(3)
-                    if bc1.form_submit_button("💾 保存修改"):
-                        ws.update_cell(real_row_num, 5, upd_price) # 第5列价格
-                        ws.update_cell(real_row_num, 3, upd_region) # 第3列区域
-                        ws.update_cell(real_row_num, 7, upd_desc) # 第7列描述
-                        st.success("已保存！")
-                        st.rerun()
-
-                    if bc2.form_submit_button("⭐ 切换精选"):
-                        new_f = 0 if row.get('is_featured') == 1 else 1
-                        ws.update_cell(real_row_num, 8, new_f) # 第8列精选
-                        st.rerun()
-
-                    if bc3.form_submit_button("🗑️ 删除房源"):
-                        ws.delete_rows(real_row_num)
-                        st.warning("房源已下架")
-                        st.rerun()
+        data = pd.DataFrame(ws.get_all_records())
+        st.dataframe(data, use_container_width=True)
