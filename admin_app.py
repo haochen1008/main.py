@@ -2,20 +2,26 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2 import service_account
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
+import cloudinary
+import cloudinary.uploader
 import requests
 from io import BytesIO
-import base64
 from datetime import datetime
 
-# --- 1. UI 隐藏与样式 (彻底隐藏 GitHub 按钮) ---
+# --- 1. 初始化配置 (Cloudinary & UI) ---
+cloudinary.config(
+    cloud_name = st.secrets["cloudinary"]["cloud_name"],
+    api_key = st.secrets["cloudinary"]["api_key"],
+    api_secret = st.secrets["cloudinary"]["api_secret"]
+)
+
 st.set_page_config(page_title="Hao Harbour Admin", layout="wide")
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
     .stAppDeployButton {display:none;} header {visibility: hidden;}
     [data-testid="stToolbar"] {visibility: hidden !important;}
-    .block-container {padding-top: 1rem;}
     .stButton>button {width: 100%; background-color: #bfa064; color: white; font-weight: bold;}
     </style>
 """, unsafe_allow_html=True)
@@ -30,129 +36,109 @@ def get_ws():
             creds_dict, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         )
         return gspread.authorize(creds).open("Hao_Harbour_DB").get_worksheet(0)
-    except:
+    except Exception as e:
+        st.error(f"数据库连接失败: {e}")
         return None
 
-# --- 3. 极致压缩逻辑 (解决 50,000 字符报错) ---
-def get_safe_b64(img):
-    quality = 40
-    img = img.resize((720, 1000), Image.Resampling.LANCZOS) # 强制调整尺寸
-    while quality > 5:
-        buf = BytesIO()
-        img.save(buf, format="JPEG", quality=quality, optimize=True)
-        b64_str = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
-        if len(b64_str) < 48500: # 严格死守 Google 限制
-            return b64_str
-        quality -= 5
-    return None
-
-# --- 4. 强力水印海报逻辑 (带微信) ---
-def create_massive_watermark_poster(files, title, price, wechat="HaoHarbour"):
-    poster = Image.new("RGBA", (800, 1100), (255, 255, 255, 255))
-    imgs = [Image.open(f).convert("RGBA").resize((398, 320)) for f in files[:6]]
-    positions = [(1, 1), (401, 1), (1, 322), (401, 322), (1, 643), (401, 643)]
-    for i, img in enumerate(imgs):
-        poster.paste(img, positions[i])
-
-    # 45度金色强化水印
-    wm_layer = Image.new("RGBA", (1600, 1600), (0,0,0,0))
-    draw_wm = ImageDraw.Draw(wm_layer)
-    for y in range(0, 1600, 140):
-        draw_wm.text((0, y), "HAO HARBOUR EXCLUSIVE    " * 3, fill=(191, 160, 100, 160)) 
-    poster.paste(wm_layer.rotate(45), (-300, -300), wm_layer.rotate(45))
-
-    # 底部黑色信息带
-    draw = ImageDraw.Draw(poster)
-    draw.rectangle([0, 965, 800, 1100], fill=(20, 22, 28, 255)) 
-    draw.text((40, 975), f"PROPERTY: {title}", fill=(191, 160, 100, 255))
-    draw.text((40, 1015), f"RENTAL: £{price} /month", fill=(255, 255, 255, 255))
-    draw.text((40, 1055), f"WECHAT: {wechat}", fill=(191, 160, 100, 255)) # 补回微信信息
-    
-    return poster.convert("RGB")
-
-# --- 5. 文案解析 ---
+# --- 3. AI 文案解析 ---
 def call_deepseek_smart(text):
     if not text: return "✓ 请输入描述"
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
-        prompt = "伦敦房产专家。总结为中文列表，保留楼盘、地铁站英文。禁止加粗。每行✓开头。"
+        prompt = "作为伦敦房产专家，将房源描述总结为中文列表。保留楼盘、地铁站英文名。每行以✓开头，禁止加粗。"
         r = requests.post("https://api.deepseek.com/chat/completions",
             json={"model": "deepseek-chat", "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": text}]},
             headers={"Authorization": f"Bearer {api_key}"}, timeout=25)
         return r.json()['choices'][0]['message']['content'].replace("**", "")
-    except: return "✓ 解析中..."
+    except: return "✓ 解析失败，请手动输入"
 
-# --- 6. 管理后台全逻辑 ---
+# --- 4. 高画质微信水印海报生成 ---
+def create_massive_watermark_poster(files, title, price, wechat="HaoHarbour"):
+    # 使用 1200x1650 保证画质
+    poster = Image.new("RGBA", (1200, 1650), (255, 255, 255, 255))
+    imgs = [Image.open(f).convert("RGBA").resize((598, 480), Image.Resampling.LANCZOS) for f in files[:6]]
+    positions = [(1, 1), (601, 1), (1, 482), (601, 482), (1, 963), (601, 963)]
+    for i, img in enumerate(imgs):
+        poster.paste(img, positions[i])
+
+    # 45度金色强化水印
+    wm_layer = Image.new("RGBA", (2000, 2000), (0,0,0,0))
+    draw_wm = ImageDraw.Draw(wm_layer)
+    for y in range(0, 2000, 150):
+        draw_wm.text((0, y), "HAO HARBOUR EXCLUSIVE    " * 4, fill=(191, 160, 100, 100)) 
+    poster.paste(wm_layer.rotate(45), (-400, -400), wm_layer.rotate(45))
+
+    # 底部黑色信息带 (带微信)
+    draw = ImageDraw.Draw(poster)
+    draw.rectangle([0, 1445, 1200, 1650], fill=(20, 22, 28, 255)) 
+    draw.text((60, 1460), f"PROPERTY: {title}", fill=(191, 160, 100, 255))
+    draw.text((60, 1520), f"RENTAL: £{price} /month", fill=(255, 255, 255, 255))
+    draw.text((60, 1580), f"WECHAT: {wechat}", fill=(191, 160, 100, 255))
+    return poster.convert("RGB")
+
+# --- 5. 主程序逻辑 ---
 ws = get_ws()
 if ws:
     t1, t2 = st.tabs(["✨ 发布新房源", "⚙️ 管理与流量统计"])
     
     with t1:
-        st.subheader("1. 录入资料")
+        st.subheader("1. 录入基本资料")
         c1, c2, c3, c4 = st.columns(4)
-        p_name = c1.text_input("名称 (title)")
-        p_price = c2.number_input("月租 (price)", min_value=0)
+        p_name = c1.text_input("房源名称 (title)")
+        p_price = c2.number_input("月租金 (price)", min_value=0)
         p_reg = c3.selectbox("区域 (region)", ["中伦敦", "东伦敦", "西伦敦", "北伦敦", "南伦敦"])
         p_rooms = c4.selectbox("户型 (rooms)", ["Studio", "1房", "2房", "3房", "4房+"])
         
-        en_desc = st.text_area("英文描述 (AI解析)")
-        if st.button("🪄 AI 解析提取"):
-            st.session_state['smart_zh'] = call_deepseek_smart(en_desc)
-        zh_desc = st.text_area("最终描述 (description)", value=st.session_state.get('smart_zh', ''), height=120)
-
-        up_imgs = st.file_uploader("上传6张图", accept_multiple_files=True)
+        en_desc = st.text_area("粘贴英文描述 (用于 AI 提取)")
+        if st.button("🪄 AI 智能提取中文文案"):
+            st.session_state['zh_content'] = call_deepseek_smart(en_desc)
+        
+        zh_desc = st.text_area("最终展示描述", value=st.session_state.get('zh_content', ''), height=150)
+        up_imgs = st.file_uploader("上传 6 张房源图片", accept_multiple_files=True)
+        
         if up_imgs:
-            p_img = create_massive_watermark_poster(up_imgs, p_name, p_price)
-            st.image(p_img, caption="带微信水印海报预览")
-            if st.button("🚀 强制发布"):
-                b64 = get_safe_b64(p_img)
-                if b64:
-                    # 严格遵循列顺序: date, title, region, rooms, price, poster_link, poster-link, description, views, is_featured
+            preview_img = create_massive_watermark_poster(up_imgs, p_name, p_price)
+            st.image(preview_img, caption="高画质水印海报预览", width=400)
+            
+            if st.button("🚀 生成并直接发布房源"):
+                with st.spinner("上传高画质海报至 Cloudinary..."):
+                    buf = BytesIO()
+                    preview_img.save(buf, format="JPEG", quality=95)
+                    upload_res = cloudinary.uploader.upload(buf.getvalue())
+                    img_url = upload_res['secure_url']
+                    
+                    # 写入 Sheet (顺序: date, title, region, rooms, price, poster-link, description, views, is_featured)
                     now = datetime.now().strftime("%Y-%m-%d")
-                    ws.append_row([now, p_name, p_reg, p_rooms, p_price, "", b64, zh_desc, 0, 0])
-                    st.success("发布成功！")
+                    ws.append_row([now, p_name, p_reg, p_rooms, p_price, img_url, zh_desc, 0, 0])
+                    st.success("发布成功！图片已存至 Cloudinary。")
                     st.rerun()
 
     with t2:
         df = pd.DataFrame(ws.get_all_records())
-        
-        # --- 流量统计展示 ---
-        if not df.empty and 'views' in df.columns:
-            st.subheader("📈 流量统计")
-            st.metric("网站总点击量 (Total Views)", int(pd.to_numeric(df['views'], errors='coerce').sum()))
-            st.divider()
-
-        st.subheader("🔍 房源搜索与维护")
-        search_q = st.text_input("输入标题搜索...", key="search_bar").lower()
-        f_df = df[df['title'].astype(str).str.lower().str.contains(search_q, na=False)] if search_q else df
-
-        for i, row in f_df.iterrows():
-            idx = i + 2
-            with st.expander(f"编辑: {row.get('title')} (点击量: {row.get('views', 0)})"):
-                with st.form(f"f_{idx}"):
-                    ca, cb, cc, cd = st.columns(4)
-                    en = ca.text_input("标题", row.get('title'))
-                    
-                    # 修复租金读取报错
-                    try: cur_p = int(float(row.get('price', 0)))
-                    except: cur_p = 0
-                    ep = cb.number_input("租金", value=cur_p)
-                    
-                    er = cc.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "北伦敦", "南伦敦"], 
-                                      index=["中伦敦", "东伦敦", "西伦敦", "北伦敦", "南伦敦"].index(row.get('region')) if row.get('region') in ["中伦敦", "东伦敦", "西伦敦", "北伦敦", "南伦敦"] else 0)
-                    erm = cd.selectbox("户型", ["Studio", "1房", "2房", "3房", "4房+"], 
-                                       index=["Studio", "1房", "2房", "3房", "4房+"].index(row.get('rooms')) if row.get('rooms') in ["Studio", "1房", "2房", "3房", "4房+"] else 0)
-                    
-                    ed = st.text_area("描述", value=row.get('description', ''), height=120)
-                    isf = st.checkbox("设为精选", value=bool(row.get('is_featured', 0)))
-                    
-                    c_save, c_del = st.columns(2)
-                    if c_save.form_submit_button("💾 保存同步"):
-                        # 严格更新 A-J: date, title, region, rooms, price, poster_link, poster-link, description, views, is_featured
-                        vals = [[row.get('date'), en, er, erm, ep, row.get('poster_link'), row.get('poster-link'), ed, row.get('views'), 1 if isf else 0]]
-                        ws.update(f"A{idx}:J{idx}", vals)
-                        st.success("已更新")
-                        st.rerun()
-                    if c_del.form_submit_button("🗑️ 删除"):
-                        ws.delete_rows(idx)
-                        st.rerun()
+        if not df.empty:
+            st.metric("总访问量 (Views)", int(pd.to_numeric(df['views'], errors='coerce').sum()))
+            
+            search_q = st.text_input("🔍 搜索房源名称...").lower()
+            f_df = df[df['title'].astype(str).str.lower().str.contains(search_q)] if search_q else df
+            
+            for i, row in f_df.iterrows():
+                idx = i + 2
+                with st.expander(f"编辑: {row['title']} (浏览: {row.get('views',0)})"):
+                    with st.form(f"edit_{idx}"):
+                        ca, cb, cc, cd = st.columns(4)
+                        new_t = ca.text_input("标题", row['title'])
+                        new_p = cb.number_input("价格", value=int(float(row['price'] or 0)))
+                        new_r = cc.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "北伦敦", "南伦敦"], index=0)
+                        new_rm = cd.selectbox("户型", ["Studio", "1房", "2房", "3房", "4房+"], index=0)
+                        new_d = st.text_area("描述内容", value=row['description'], height=100)
+                        is_f = st.checkbox("置顶精选", value=bool(row.get('is_featured', 0)))
+                        
+                        cs, cd = st.columns(2)
+                        if cs.form_submit_button("💾 保存更新"):
+                            # 更新 A-I 列内容
+                            ws.update(f"A{idx}:I{idx}", [[row['date'], new_t, new_r, new_rm, new_p, row['poster-link'], new_d, row['views'], 1 if is_f else 0]])
+                            st.success("更新成功")
+                            st.rerun()
+                        if cd.form_submit_button("🗑️ 删除房源"):
+                            ws.delete_rows(idx)
+                            st.rerun()
