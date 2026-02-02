@@ -90,7 +90,7 @@ def create_poster(files, title, price):
 
         # C. 底部信息排版 (移除日期)
         # 标题与价格
-        display_text = f"{title} | GBP {price}/PCM | {rooms}"
+        display_text = f"{title} | GBP {price}/PCM"
         draw.text((60, 1460), display_text, font=font_title, fill=(0, 0, 0))
         
         # 装饰金色线条
