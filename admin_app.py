@@ -53,7 +53,7 @@ def call_smart_ai(text):
     except: return "✓ 解析失败，请手动修改"
 
 # --- 4. 核心：海报引擎 (双水印 & 加深版) ---
-def create_poster(files, title, price):
+def create_poster(files, title, price，rooms):
     try:
         # 1200x1800 高清画布
         canvas = Image.new('RGB', (1200, 1800), (255, 255, 255))
@@ -90,7 +90,7 @@ def create_poster(files, title, price):
 
         # C. 底部信息排版 (移除日期)
         # 标题与价格
-        display_text = f"{title} | GBP {price}/PCM"
+        display_text = f"{title} | GBP {price}/PCM | {rooms}"
         draw.text((60, 1460), display_text, font=font_title, fill=(0, 0, 0))
         
         # 装饰金色线条
