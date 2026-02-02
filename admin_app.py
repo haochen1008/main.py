@@ -52,29 +52,52 @@ def call_deepseek_smart(text):
         return r.json()['choices'][0]['message']['content'].replace("**", "")
     except: return "✓ 解析失败，请手动输入"
 
-# --- 4. 高画质微信水印海报生成 ---
-def create_massive_watermark_poster(files, title, price, wechat="HaoHarbour"):
-    # 使用 1200x1650 保证画质
-    poster = Image.new("RGBA", (1200, 1650), (255, 255, 255, 255))
-    imgs = [Image.open(f).convert("RGBA").resize((598, 480), Image.Resampling.LANCZOS) for f in files[:6]]
-    positions = [(1, 1), (601, 1), (1, 482), (601, 482), (1, 963), (601, 963)]
-    for i, img in enumerate(imgs):
-        poster.paste(img, positions[i])
+# --- 4. 融合后的海报生成引擎 (保留你喜欢的 Version 2 设计) ---
+def create_poster(files, title, price):
+    try:
+        # 统一比例：1200x1800 高画质画布
+        canvas = Image.new('RGB', (1200, 1800), (255, 255, 255))
+        draw = ImageDraw.Draw(canvas)
+        
+        # 加载字体 (针对中文字体做了 fallback 处理)
+        try:
+            # 尝试加载中文字体，如果是在 Linux 容器运行，可能需要指定绝对路径
+            font_title = ImageFont.truetype("simhei.ttf", 65)
+            font_footer = ImageFont.truetype("simhei.ttf", 35)
+            font_wm = ImageFont.truetype("simhei.ttf", 120)
+        except:
+            font_title = font_footer = font_wm = ImageFont.load_default()
 
-    # 45度金色强化水印
-    wm_layer = Image.new("RGBA", (2000, 2000), (0,0,0,0))
-    draw_wm = ImageDraw.Draw(wm_layer)
-    for y in range(0, 2000, 150):
-        draw_wm.text((0, y), "HAO HARBOUR EXCLUSIVE    " * 4, fill=(191, 160, 100, 100)) 
-    poster.paste(wm_layer.rotate(45), (-400, -400), wm_layer.rotate(45))
+        # 1. 6 宫格拼接 (Version 2 逻辑)
+        for i, f in enumerate(files[:6]):
+            img = Image.open(f).convert('RGB').resize((590, 450), Image.Resampling.LANCZOS)
+            x = 7 + (i % 2) * 597
+            y = 7 + (i // 2) * 457
+            canvas.paste(img, (x, y))
 
-    # 底部黑色信息带 (带微信)
-    draw = ImageDraw.Draw(poster)
-    draw.rectangle([0, 1445, 1200, 1650], fill=(20, 22, 28, 255)) 
-    draw.text((60, 1460), f"PROPERTY: {title}", fill=(191, 160, 100, 255))
-    draw.text((60, 1520), f"RENTAL: £{price} /month", fill=(255, 255, 255, 255))
-    draw.text((60, 1580), f"WECHAT: {wechat}", fill=(191, 160, 100, 255))
-    return poster.convert("RGB")
+        # 2. 30度旋转水印 (Version 2 标志性设计)
+        wm_layer = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
+        wm_draw = ImageDraw.Draw(wm_layer)
+        wm_draw.text((250, 650), "Hao Harbour", font=font_wm, fill=(255, 255, 255, 120))
+        rotated_wm = wm_layer.rotate(30, expand=False)
+        canvas.paste(rotated_wm, (0, 0), rotated_wm)
+
+        # 3. 底部信息排版 (Version 2 灰金线条风格)
+        # 标题与价格
+        display_text = f"{title} | £{price}/mo"
+        draw.text((60, 1450), display_text, font=font_title, fill=(0, 0, 0))
+        
+        # 装饰线条
+        draw.line([(60, 1540), (1140, 1540)], fill=(200, 200, 200), width=3)
+        
+        # 副标题
+        draw.text((60, 1570), "Hao Harbour | London Excellence", font=font_footer, fill=(180, 160, 100))
+        draw.text((60, 1630), f"WeChat: HaoHarbour  |  Date: {datetime.now().strftime('%Y-%m-%d')}", font=font_footer, fill=(150, 150, 150))
+        
+        return canvas
+    except Exception as e:
+        st.error(f"海报合成失败: {e}")
+        return None
 
 # --- 5. 主程序逻辑 ---
 ws = get_ws()
@@ -97,27 +120,30 @@ if ws:
         up_imgs = st.file_uploader("上传 6 张房源图片", accept_multiple_files=True)
         
         if up_imgs:
-            preview_img = create_massive_watermark_poster(up_imgs, p_name, p_price)
-            st.image(preview_img, caption="高画质水印海报预览", width=400)
-            
-            if st.button("🚀 生成并直接发布房源"):
-                with st.spinner("上传高画质海报至 Cloudinary..."):
-                    buf = BytesIO()
-                    preview_img.save(buf, format="JPEG", quality=95)
-                    upload_res = cloudinary.uploader.upload(buf.getvalue())
-                    img_url = upload_res['secure_url']
-                    
-                    # 写入 Sheet (顺序: date, title, region, rooms, price, poster-link, description, views, is_featured)
-                    now = datetime.now().strftime("%Y-%m-%d")
-                    ws.append_row([now, p_name, p_reg, p_rooms, p_price, img_url, zh_desc, 0, 0])
-                    st.success("发布成功！图片已存至 Cloudinary。")
-                    st.rerun()
+            # 使用融合后的新海报引擎
+            preview_img = create_poster(up_imgs, p_name, p_price)
+            if preview_img:
+                st.image(preview_img, caption="高画质 Version 2 海报预览", width=450)
+                
+                if st.button("🚀 生成并直接发布房源"):
+                    with st.spinner("上传海报至 Cloudinary..."):
+                        buf = BytesIO()
+                        preview_img.save(buf, format="JPEG", quality=95)
+                        upload_res = cloudinary.uploader.upload(buf.getvalue())
+                        img_url = upload_res['secure_url']
+                        
+                        # 写入 Sheet (顺序: date, title, region, rooms, price, poster-link, description, views, is_featured)
+                        now = datetime.now().strftime("%Y-%m-%d")
+                        ws.append_row([now, p_name, p_reg, p_rooms, int(p_price), img_url, zh_desc, 0, 0])
+                        st.success("发布成功！海报已生成并存至云端。")
+                        st.rerun()
 
     with t2:
-        df = pd.DataFrame(ws.get_all_records())
-        if not df.empty:
+        # (管理端逻辑保持不变，确保 F 列 poster-link 正确)
+        data = ws.get_all_records()
+        if data:
+            df = pd.DataFrame(data)
             st.metric("总访问量 (Views)", int(pd.to_numeric(df['views'], errors='coerce').sum()))
-            
             search_q = st.text_input("🔍 搜索房源名称...").lower()
             f_df = df[df['title'].astype(str).str.lower().str.contains(search_q)] if search_q else df
             
@@ -133,12 +159,11 @@ if ws:
                         new_d = st.text_area("描述内容", value=row['description'], height=100)
                         is_f = st.checkbox("置顶精选", value=bool(row.get('is_featured', 0)))
                         
-                        cs, cd = st.columns(2)
+                        cs, cd_btn = st.columns(2)
                         if cs.form_submit_button("💾 保存更新"):
-                            # 更新 A-I 列内容
                             ws.update(f"A{idx}:I{idx}", [[row['date'], new_t, new_r, new_rm, new_p, row['poster-link'], new_d, row['views'], 1 if is_f else 0]])
                             st.success("更新成功")
                             st.rerun()
-                        if cd.form_submit_button("🗑️ 删除房源"):
+                        if cd_btn.form_submit_button("🗑️ 删除房源"):
                             ws.delete_rows(idx)
                             st.rerun()
