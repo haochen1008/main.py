@@ -52,22 +52,19 @@ def call_smart_ai(text):
         return r.json()['choices'][0]['message']['content'].replace("**", "")
     except: return "✓ 解析失败，请手动修改"
 
-# --- 4. 核心：海报引擎 (修复符号 & 增加户型) ---
-def create_poster(files, title, price, rooms):
+# --- 4. 核心：海报引擎 (双水印 & 加深版) ---
+def create_poster(files, title, price):
     try:
         # 1200x1800 高清画布
         canvas = Image.new('RGB', (1200, 1800), (255, 255, 255))
         draw = ImageDraw.Draw(canvas)
         
-        # 尝试使用 Arial 或其他系统内置字体来渲染英镑符号
         try:
-            # 价格部分建议使用包含符号的字体
-            font_title = ImageFont.truetype("arial.ttf", 65) 
-            font_chinese = ImageFont.truetype("simhei.ttf", 65) # 标题名用中文
+            font_title = ImageFont.truetype("simhei.ttf", 65)
             font_footer = ImageFont.truetype("simhei.ttf", 38)
-            font_wm = ImageFont.truetype("simhei.ttf", 130) 
+            font_wm = ImageFont.truetype("simhei.ttf", 130) # 水印字体
         except:
-            font_title = font_chinese = font_footer = font_wm = ImageFont.load_default()
+            font_title = font_footer = font_wm = ImageFont.load_default()
 
         # A. 6 宫格拼接
         for i, f in enumerate(files[:6]):
@@ -76,30 +73,33 @@ def create_poster(files, title, price, rooms):
             y = 7 + (i // 2) * 457
             canvas.paste(img, (x, y))
 
-        # B. 双居中加深水印
+        # B. 双居中加深水印 (一上一下)
         wm_layer = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
         wm_draw = ImageDraw.Draw(wm_layer)
+        
+        # 水印颜色加深 (RGBA 的 A 值调高到 160)
         wm_color = (255, 255, 255, 160) 
+        
+        # 上水印
         wm_draw.text((220, 400), "Hao Harbour", font=font_wm, fill=wm_color)
+        # 下水印
         wm_draw.text((220, 900), "Hao Harbour", font=font_wm, fill=wm_color)
+        
         rotated_wm = wm_layer.rotate(30, expand=False)
         canvas.paste(rotated_wm, (0, 0), rotated_wm)
 
-        # C. 底部信息排版 (修复英镑符号 & 增加几房)
-        # 组装标题：标题名
-        draw.text((60, 1430), f"{title}", font=font_chinese, fill=(0, 0, 0))
+        # C. 底部信息排版 (移除日期)
+        # 标题与价格
+        display_text = f"{title} | GBP {price}/PCM | {rooms}"
+        draw.text((60, 1460), display_text, font=font_title, fill=(0, 0, 0))
         
-        # 组装价格信息：£ 符号如果乱码，可以用 GBP 代替或更换字体
-        # 这里我们合并显示：价格 + 户型
-        price_rooms_text = f"£{price}/PCM | {rooms}"
-        draw.text((60, 1510), price_rooms_text, font=font_title, fill=(191, 160, 100)) # 金色价格
+        # 装饰金色线条
+        draw.line([(60, 1550), (1140, 1550)], fill=(200, 200, 200), width=3)
         
-        # 装饰线条
-        draw.line([(60, 1585), (1140, 1585)], fill=(200, 200, 200), width=3)
-        
-        # 副标题
-        draw.text((60, 1615), "Hao Harbour | London Excellence", font=font_footer, fill=(150, 150, 150))
-        draw.text((60, 1680), "Wechat: HaoHarbour", font=font_footer, fill=(180, 160, 100))
+        # 副标题 (London Excellence)
+        draw.text((60, 1585), "Hao Harbour | London Excellence", font=font_footer, fill=(180, 160, 100))
+        # 底部微信
+        draw.text((60, 1650), f"WeChat: HaoHarbour", font=font_footer, fill=(130, 130, 130))
         
         return canvas
     except Exception as e:
@@ -124,13 +124,12 @@ if ws:
             st.session_state['zh_content'] = call_smart_ai(en_desc)
         
         zh_desc = st.text_area("最终展示描述", value=st.session_state.get('zh_content', ''), height=150)
-        up_imgs = st.file_uploader("上传房源图", accept_multiple_files=True)
+        up_imgs = st.file_uploader("上传房源图 (建议6张)", accept_multiple_files=True)
         
         if up_imgs:
-            # 传入 p_rooms 参数
-            preview_img = create_poster(up_imgs, p_name, p_price, p_rooms)
+            preview_img = create_poster(up_imgs, p_name, p_price)
             if preview_img:
-                st.image(preview_img, caption="修复版海报预览", width=450)
+                st.image(preview_img, caption="双水印强化海报预览", width=450)
                 
                 if st.button("🚀 立即发布"):
                     with st.spinner("同步云端中..."):
@@ -141,18 +140,33 @@ if ws:
                         
                         now = datetime.now().strftime("%Y-%m-%d")
                         ws.append_row([now, p_name, p_reg, p_rooms, int(p_price), img_url, zh_desc, 0, 0])
-                        st.success("发布成功！")
+                        st.success("发布成功！海报已存档。")
                         st.rerun()
 
     with t2:
-        # 管理逻辑保持不变... (省略部分同上以保持简洁)
         data = ws.get_all_records()
         if data:
             df = pd.DataFrame(data)
+            st.metric("累计访问量", int(pd.to_numeric(df['views'], errors='coerce').sum()))
             search = st.text_input("🔍 快速搜索房源...").lower()
             f_df = df[df['title'].astype(str).str.lower().str.contains(search)] if search else df
+            
             for i, row in f_df.iterrows():
                 idx = i + 2
-                with st.expander(f"{row['title']}"):
-                    # ...编辑表单逻辑...
-                    pass
+                with st.expander(f"{row['title']} (浏览: {row.get('views',0)})"):
+                    with st.form(f"edit_{idx}"):
+                        ca, cb, cc, cd = st.columns(4)
+                        nt = ca.text_input("标题", row['title'])
+                        np = cb.number_input("价格", value=int(float(row['price'] or 0)))
+                        nr = cc.selectbox("区域", ["中伦敦", "东伦敦", "西伦敦", "北伦敦", "南伦敦"], index=0)
+                        nrm = cd.selectbox("户型", ["Studio", "1房", "2房", "3房", "4房+"], index=0)
+                        nd = st.text_area("文案", value=row['description'], height=100)
+                        isf = st.checkbox("精选置顶", value=bool(row.get('is_featured', 0)))
+                        
+                        s1, s2 = st.columns(2)
+                        if s1.form_submit_button("保存"):
+                            ws.update(f"A{idx}:I{idx}", [[row['date'], nt, nr, nrm, np, row['poster-link'], nd, row['views'], 1 if isf else 0]])
+                            st.rerun()
+                        if s2.form_submit_button("删除"):
+                            ws.delete_rows(idx)
+                            st.rerun()
