@@ -53,7 +53,7 @@ def call_smart_ai(text):
     except: return "✓ 解析失败，请手动修改"
 
 # --- 4. 核心：海报引擎 (双水印 & 加深版) ---
-def create_poster(files, title, price，rooms):
+def create_poster(files, title, price, rooms):
     try:
         # 1200x1800 高清画布
         canvas = Image.new('RGB', (1200, 1800), (255, 255, 255))
@@ -76,8 +76,6 @@ def create_poster(files, title, price，rooms):
         # B. 双居中加深水印 (一上一下)
         wm_layer = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
         wm_draw = ImageDraw.Draw(wm_layer)
-        
-        # 水印颜色加深 (RGBA 的 A 值调高到 160)
         wm_color = (255, 255, 255, 160) 
         
         # 上水印
@@ -88,8 +86,8 @@ def create_poster(files, title, price，rooms):
         rotated_wm = wm_layer.rotate(30, expand=False)
         canvas.paste(rotated_wm, (0, 0), rotated_wm)
 
-        # C. 底部信息排版 (移除日期)
-        # 标题与价格
+        # C. 底部信息排版 (在此处修改展示文案)
+        # 拼接后的文案示例: TITLE | GBP 2500/PCM | 2房
         display_text = f"{title} | GBP {price}/PCM | {rooms}"
         draw.text((60, 1460), display_text, font=font_title, fill=(0, 0, 0))
         
