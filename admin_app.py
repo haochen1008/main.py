@@ -88,7 +88,7 @@ def create_poster(files, title, price, rooms):
 
         # C. 底部信息排版 (在此处修改展示文案)
         # 拼接后的文案示例: TITLE | GBP 2500/PCM | 2房
-        display_text = f"{title} | GBP {price}/PCM | {rooms}"
+        display_text = f"{title} | {price}/PM | {rooms}"
         draw.text((60, 1460), display_text, font=font_title, fill=(0, 0, 0))
         
         # 装饰金色线条
