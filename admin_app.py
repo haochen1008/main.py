@@ -52,7 +52,7 @@ def call_smart_ai(text):
         return r.json()['choices'][0]['message']['content'].replace("**", "")
     except: return "✓ 解析失败，请手动修改"
 
-# --- 4. 核心：海报引擎 (双水印 & 加深版) ---
+# --- 4. 核心：海报引擎 (仅修改 display_text 拼接) ---
 def create_poster(files, title, price, rooms):
     try:
         # 1200x1800 高清画布
@@ -125,7 +125,8 @@ if ws:
         up_imgs = st.file_uploader("上传房源图 (建议6张)", accept_multiple_files=True)
         
         if up_imgs:
-            preview_img = create_poster(up_imgs, p_name, p_price)
+            # 修改点：这里传入了 p_rooms 给海报引擎
+            preview_img = create_poster(up_imgs, p_name, p_price, p_rooms)
             if preview_img:
                 st.image(preview_img, caption="双水印强化海报预览", width=450)
                 
