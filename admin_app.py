@@ -96,8 +96,6 @@ def create_poster(files, title, price, rooms):
         
         # 副标题 (London Excellence)
         draw.text((60, 1585), "Hao Harbour | London Excellence", font=font_footer, fill=(180, 160, 100))
-        # 底部微信
-        draw.text((60, 1650), f"WeChat: HaoHarbour", font=font_footer, fill=(130, 130, 130))
         
         return canvas
     except Exception as e:
